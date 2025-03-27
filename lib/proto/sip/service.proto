@@ -1,0 +1,15 @@
+syntax = "proto2";
+
+import "message.proto";
+
+service Sip {
+	rpc registrate (sip.query) returns (sip.answer);
+	rpc invite (sip.query) returns (sip.answer);
+	rpc option (sip.query) returns (sip.answer);
+	rpc cancel (sip.query) returns (sip.answer);
+	rpc bye (sip.query) returns (sip.answer);
+	rpc info (sip.query) returns (sip.answer);
+	rpc subscribe (sip.query) returns (sip.answer);
+	rpc notify (sip.query) returns (sip.answer);
+}
+

@@ -1,0 +1,7 @@
+#
+#
+#
+
+ADD_SUBDIRECTORY(proto)
+ADD_SUBDIRECTORY(mqtt)
+ADD_SUBDIRECTORY(common)

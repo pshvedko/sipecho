@@ -1,0 +1,23 @@
+/* 
+ * config.h
+ *
+ *  Generated from config.h.in by CMake.
+ */
+
+#cmakedefine HAVE_MS_MEDIASTREAM 1
+#cmakedefine HAVE_AVFILTER_BUFFERSRC_H 1
+#cmakedefine HAVE_AVFILTER_BUFFERSINK_H 1
+
+#cmakedefine HAVE_ARPA_INET_H 1
+#cmakedefine HAVE_NETINET_IN_H 1
+#cmakedefine HAVE_SYS_ENDIAN_H 1
+#cmakedefine HAVE_SYS_TYPES_H 1
+#cmakedefine HAVE_SYS_STAT_H 1
+
+#pragma once
+
+#define PROJECT_VERSION_MAJOR @PROJECT_VERSION_MAJOR@
+#define PROJECT_VERSION_MINOR @PROJECT_VERSION_MINOR@
+#define PROJECT_VERSION_PATCH @PROJECT_VERSION_PATCH@ 
+#define DEFAULT_PROJECT_NAME "@CMAKE_PROJECT_NAME@"
+#define INSTALL_PREFIX "@CMAKE_INSTALL_PREFIX@"

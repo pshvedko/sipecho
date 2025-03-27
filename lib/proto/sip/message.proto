@@ -1,0 +1,54 @@
+syntax = "proto2";
+
+import "type.proto";
+
+package sip;
+
+message head {
+	required string version = 1;
+	required sip.type.address from = 2;
+	required sip.type.address to = 3;
+	required sip.type.call_id call_id = 4;
+	required sip.type.cseq cseq = 5;
+	repeated sip.type.content_type accept = 6;
+	repeated sip.type.encode accept_encoding = 7;
+	repeated sip.type.encode accept_language = 8;
+	repeated sip.type.encode alert_info = 9;
+	repeated string allow = 10;
+	repeated sip.type.encode call_info = 11;
+	repeated sip.type.address contact = 12;
+	repeated sip.type.encode content_encoding = 13;
+	repeated sip.type.encode error_info = 14;
+	repeated sip.type.authentication proxy_authentication = 15;
+	repeated sip.type.authorization proxy_authorization = 16;
+	repeated sip.type.authenticate proxy_authenticate = 17;
+	repeated sip.type.authentication authentication = 18;
+	repeated sip.type.authorization authorization = 19;
+	repeated sip.type.authenticate authenticate = 20;
+	repeated sip.type.address record_route = 21;
+	repeated sip.type.address route = 22;
+	repeated sip.type.via via = 23;
+	repeated sip.type.pair other = 24;
+	optional sip.type.content_type content_type = 25;
+}
+
+message query {
+	required sip.type.uri request = 1;
+	required head head = 2;
+	repeated sip.type.content content = 3;
+	optional sip.type.sdp sdp = 4;
+	optional sip.type.vfu vfu = 5;
+	optional sip.type.dtmf dtmf = 6;
+	optional sip.type.pidf pidf = 7;
+	optional sip.type.rl rl = 8;
+}
+
+message answer {
+	required int32 response = 1;
+	required head head = 2;
+	repeated sip.type.content content = 3;
+	optional sip.type.sdp sdp = 4;
+	optional sip.type.rl rl = 5;
+}
+
+

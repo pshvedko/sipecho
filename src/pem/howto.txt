@@ -1,0 +1,6 @@
+openssl genrsa -out ca.key 4096
+openssl req -new -x509 -days 365 -key ca.key -out ca.crt
+openssl genrsa -out ia.key 4096
+openssl x509 -req -days 365 -in ia.csr -CA ca.crt -CAkey ca.key -set_serial 01 -out ia.crt
+openssl dhparam -2 -out dh.pem 4096
+

@@ -1,0 +1,230 @@
+syntax = "proto2";
+
+package sip.type;
+
+message cseq {
+	required string method = 1; ///< CSeq method
+	required string number = 2; ///< CSeq number
+}
+
+message call_id {
+	required string number = 1; ///< Call-ID number
+	optional string host = 2; ///< Call-ID host information
+}
+
+message pair {
+	required string name = 1; ///< parameter name
+	optional string value = 2; ///< parameter value
+}
+
+message encode {
+	required string element = 1; ///< encoding main value
+	repeated pair gen_params = 2; ///< encoding parameters
+}
+
+message uri {
+	required string scheme = 1; //< URI Scheme
+	optional string username = 2; ///< User Name
+	optional string password = 3; ///< Password
+	required string host = 4; ///< Domain
+	optional string port = 5; ///< Port number
+	repeated pair url_params = 6; ///< URI parameters
+	repeated pair url_headers = 7; ///< URI headers
+	optional string other = 8; ///< Space for other URL schemes. (HTTP, MAILTO...)
+}
+
+message address {
+	optional string displayname = 1; ///< Display Name
+	optional uri url = 2; ///< Unique Resource Identifier
+	repeated pair gen_params = 3; ///< other From/To parameters
+}
+
+message authentication {
+	required string nextnonce = 1; ///< nextnonce value
+	required string qop_options = 2; ///< qop options value
+	required string rspauth = 3; ///< rspauth value
+	required string cnonce = 4; ///< cnonce value
+	required string nonce_count = 5; ///< noncecount value
+}
+
+message authenticate {
+	required string auth_type = 1; ///< Authentication Type (Basic or Digest)
+	required string realm = 2; ///< realm (as a quoted-string)
+	optional string domain = 3; ///< domain (optional)
+	optional string nonce = 4; ///< nonce (optional)
+	optional string opaque = 5; ///< opaque (optional)
+	optional string stale = 6; ///< stale (optional)
+	optional string algorithm = 7; ///< algorithm (optional)
+	optional string qop_options = 8; ///< qop option (optional)
+	optional string auth_param = 9; ///< other parameters (optional)
+}
+
+message authorization {
+	required string auth_type = 1; ///< Authentication Type (Basic or Digest)
+	required string username = 2; ///< login
+	required string realm = 3; ///< realm (as a quoted-string)
+	required string nonce = 4; ///< nonce
+	required string uri = 5; ///< uri
+	required string response = 6; ///< response
+	optional string digest = 7; ///< digest
+	optional string algorithm = 8; ///< algorithm (optional)
+	optional string cnonce = 9; ///< cnonce (optional)
+	optional string opaque = 10; ///< opaque (optional)
+	optional string message_qop = 11; ///< message qop (optional)
+	optional string nonce_count = 12; ///< nonce count (optional)
+	optional string auth_param = 13; ///< other parameters (optional)
+}
+
+message via {
+	required string version = 1; ///< SIP Version
+	required string protocol = 2; ///< Protocol used by SIP Agent
+	required string host = 3; ///< Host where to send answers
+	optional string port = 4; ///< Port where to send answers
+	optional string comment = 5; ///< Comments about SIP Agent
+	repeated pair via_params = 6; ///< Via parameters
+}
+
+message content_type {
+	required string type = 1; ///< Type of attachement
+	required string subtype = 2; ///< Sub-Type of attachement
+	repeated pair gen_params = 3; ///< Content-Type parameters
+};
+
+message content {
+	required bytes body = 1; ///< buffer containing data
+	optional content_type content_type = 2; /// Content-Type (when MIME is used)
+	repeated pair headers = 3; ///< List of headers (when MIME is used)
+}
+
+message sdp {
+	message connection {
+		required string c_nettype = 1; ///< Network Type
+		required string c_addrtype = 2; ///< Network Address Type
+		required string c_addr = 3; ///< Address
+		optional string c_addr_multicast_ttl = 4; ///< TTL value for multicast address
+		optional string c_addr_multicast_int = 5; ///< Number of multicast address
+	}
+
+	message bandwidth {
+		required string b_bwtype = 1; ///< bandwidth type
+		required string b_bandwidth = 2; ///< bandwidth value
+	}
+
+	message time {
+		required string t_start_time = 1; ///< start time
+		required string t_stop_time = 2; ///< stop time
+		repeated string r_repeats = 3; ///< repeat headers
+	}
+
+	message key {
+		required string k_keytype = 1; ///< Key Type (prompt, clear, base64, URI)
+		optional string k_keydata = 2; ///< key data
+	}
+
+	message attribute {
+		required string a_att_field = 1; ///< attribute field
+		optional string a_att_value = 2; ///< attribute value (optional)
+	}
+
+	message media {
+		required string m_media = 1; ///< media type
+		required string m_port = 2; ///< port number
+		optional string m_number_of_port = 3; ///< number of port
+		required string m_proto = 4; ///< protocol to be used
+		repeated string m_payloads = 5; ///< list of payloads
+		optional string i_info = 6; ///< information header
+		repeated connection c_connections = 7; ///< list of connections
+		repeated bandwidth b_bandwidths = 8; ///< list of bandwidths
+		repeated attribute a_attributes = 9; ///< list of attributes
+		optional key k_key = 10; ///< key informations
+	}
+
+	required string v_version = 1; ///< version header
+	required string o_username = 2; ///< User Name
+	required string o_sess_id = 3; ///< Identifier for session
+	required string o_sess_version = 4; ///< Version of session
+	required string o_nettype = 5; ///< Network type
+	required string o_addrtype = 6; ///< Address type
+	required string o_addr = 7; ///< Address
+	optional string s_name = 8; ///< Subject
+	optional string i_info = 9; ///< Information
+	optional string u_uri = 10; ///< URI
+	repeated string e_emails = 11; ///< list of mail address
+	repeated string p_phones = 12; ///< list of phone numbers
+	optional connection c_connection = 13; ///< Connection information
+	repeated bandwidth b_bandwidths = 14; ///< list of bandwidth info
+	repeated time t_descrs = 15; ///< list of time description
+	optional string z_adjustments = 16; ///< Time adjustment
+	optional key k_key = 17; ///< Key information
+	repeated attribute a_attributes = 18; ///< list of global attributes
+	repeated media m_medias = 19; ///< list of supported media
+}
+
+message vfu { // http://tools.ietf.org/html/rfc5168#section-5
+	message Media_control {
+		message Vc_primitive {
+			enum To_encoder {
+				picture_fast_update = 0;
+				picture_freeze = 1;
+			}
+
+			required To_encoder to_encoder = 1;
+			repeated string stream_id = 2;
+		}
+
+		repeated Vc_primitive vc_primitive = 1;
+	}
+
+	required Media_control media_control = 1;
+}
+
+message dtmf { // http://tools.ietf.org/html/draft-kaplan-dispatch-info-dtmf-package-00#section-5.2
+	required uint32 signal = 1;
+	required uint32 duration = 2 [default = 250];
+}
+
+message pidf { // http://tools.ietf.org/html/rfc3863#section-4.2.2
+	message Presence {
+		message Tuple {
+			message Status {
+				optional string basic = 1; // "open" or "closed"
+			}
+
+			required string __id = 1 [default = "1"];
+			required Status status = 2;
+			optional string contact = 3; // NOTE: omitted optionally 'priority' attribute
+			repeated string note = 4;
+			optional string timestamp = 5; // http://tools.ietf.org/html/rfc3339
+		}
+
+		required string __xmlns = 1 [default = "urn:ietf:params:xml:ns:pidf"];
+		required string __entity = 2;
+		repeated Tuple tuple = 3;
+	}
+
+	required Presence presence = 1;
+}
+
+message rl { // http://tools.ietf.org/html/rfc4826#section-3.3
+	message Resource {
+		message List {
+			message Entry {
+				required string __uri = 1;
+				optional string display__name = 2;
+			}
+
+			optional string __name = 1;
+			optional string display__name = 2;
+			repeated Entry entry = 3;
+			repeated List list = 4;
+		}
+
+		required string __xmlns = 1
+		[default = "urn:ietf:params:xml:ns:resource-lists"];
+		required string __xmlns___xsi = 2
+		[default = "http://www.w3.org/2001/XMLSchema-instance"];
+		repeated List list = 3;
+	}
+
+	required Resource resource__lists = 1;
+}
