@@ -798,50 +798,41 @@ static osip_message_t *sip_response_new(osip_transaction_t *a, osip_message_t *q
 /**
  *
  */
-static void sip_finalize_invite(osip_transaction_t *a, osip_message_t *m) {
+static void sip_finalize_invite(osip_transaction_t *a, osip_message_t *m, const net_event_t *net) {
     osip_list_special_free(&m->authorizations, (void (*)(void *)) &osip_authorization_free);
     osip_list_special_free(&m->headers, (void (*)(void *)) &osip_header_free);
 
     if (m->status_code != SIP_OK)
         return;
 
-    const net_event_t *net = osip_transaction_get_event(a);
-    if (net) {
-        osip_via_t *via = NULL;
-        osip_message_get_via(m, 0, &via);
-        if (via && strcasecmp(via->protocol, net->net->name) != 0)
-            via = NULL;
+    osip_via_t *via = NULL;
+    osip_message_get_via(m, 0, &via);
+    if (via && strcasecmp(via->protocol, net->net->name) != 0)
+        via = NULL;
 
-        aor_update(a->orig_request, -1, .0f, via ? net->id : 0);
-
-        return;
-    }
-    sip_response(m, SIP_INTERNAL_SERVER_ERROR);
+    aor_update(a->orig_request, -1, .0f, via ? net->id : 0);
 }
 
 /**
  *
  */
-static void sip_finalize_subscribe(osip_transaction_t *a, osip_message_t *m) {
+static void sip_finalize_subscribe(osip_transaction_t *a, osip_message_t *m, const net_event_t *net) {
     osip_list_special_free(&m->authorizations, (void (*)(void *)) &osip_authorization_free);
     osip_list_special_free(&m->headers, (void (*)(void *)) &osip_header_free);
 
     if (m->status_code != SIP_OK)
         return;
 
-    const net_event_t *net = osip_transaction_get_event(a);
-    if (net) {
-        char contact[512];
-        snprintf(contact, sizeof(contact), "%s:%s:%s", net->app->name, net->app->hostname, net->app->port);
-        osip_tolower(contact);
-        osip_message_set_contact(m, contact);
-    }
+    char contact[512];
+    snprintf(contact, sizeof(contact), "%s:%s:%s", net->app->name, net->app->hostname, net->app->port);
+    osip_tolower(contact);
+    osip_message_set_contact(m, contact);
 }
 
 /**
  *
  */
-static void sip_finalize_registrate(osip_transaction_t *a, osip_message_t *m) {
+static void sip_finalize_registrate(osip_transaction_t *a, osip_message_t *m, const net_event_t *net) {
     osip_list_special_free(&m->authorizations, (void (*)(void *)) &osip_authorization_free);
     osip_list_special_free(&m->contacts, (void (*)(void *)) &osip_contact_free);
     osip_list_special_free(&m->headers, (void (*)(void *)) &osip_header_free);
@@ -849,30 +840,25 @@ static void sip_finalize_registrate(osip_transaction_t *a, osip_message_t *m) {
     if (m->status_code != SIP_OK)
         return;
 
-    const net_event_t *net = osip_transaction_get_event(a);
-    if (net) {
-        osip_via_t *via = NULL;
-        osip_message_get_via(m, 0, &via);
-        if (via && strcasecmp(via->protocol, net->net->name) != 0)
-            via = NULL;
+    osip_via_t *via = NULL;
+    osip_message_get_via(m, 0, &via);
+    if (via && strcasecmp(via->protocol, net->net->name) != 0)
+        via = NULL;
 
-        aor_t *from = aor_update(a->orig_request, SIP_DEFAULT_EXPIRES, .5f, via ? net->id : 0);
-        if (from) {
-            map_iter_t *iter = map_iter_end(&from->contact);
-            while (*iter) {
-                const aor_record_t *next = map_iter_up(&from->contact, &iter);
-                if (next) {
-                    osip_contact_t *contact = NULL;
-                    osip_contact_clone(next->contact, &contact);
-                    osip_list_add(&m->contacts, contact, 0);
-                }
+    aor_t *from = aor_update(a->orig_request, SIP_DEFAULT_EXPIRES, .5f, via ? net->id : 0);
+    if (from) {
+        map_iter_t *iter = map_iter_end(&from->contact);
+        while (*iter) {
+            const aor_record_t *next = map_iter_up(&from->contact, &iter);
+            if (next) {
+                osip_contact_t *contact = NULL;
+                osip_contact_clone(next->contact, &contact);
+                osip_list_add(&m->contacts, contact, 0);
             }
-            return;
         }
-        sip_response(m, SIP_FORBIDDEN);
         return;
     }
-    sip_response(m, SIP_INTERNAL_SERVER_ERROR);
+    sip_response(m, SIP_FORBIDDEN);
 }
 
 /**
@@ -915,6 +901,19 @@ void sip_finalize_failure(const int id) {
 
 /**
  *
+ * @code
+ *      osip_message_t *m = sip_callback_switch(type, a, q);
+ *      while (m) {
+ *          osip_message_t *n = osip_message_get_application_data(m);
+ *          osip_event_t *e = osip_new_outgoing_sipmessage(m);
+ *          if (e)
+ *              osip_transaction_add_event(a, e);
+ *          else
+ *              osip_message_free(m);
+ *
+ *          m = n;
+ *      }
+ * @endcode
  */
 void sip_finalize(osip_message_t *m, const int id) {
     if (!__sip)
@@ -922,24 +921,31 @@ void sip_finalize(osip_message_t *m, const int id) {
 
     osip_event_t *e = __osip_event_new_id(m, id);
     if (e) {
-        osip_transaction_t *a = __osip_find_transaction(__sip, e, 0);
+        log_alert("%: !!! EVENT");
+
+        osip_transaction_t *a = __osip_find_transaction(__sip, e, 1);
         if (a) {
+            log_alert("%: !!! FOUND %i %i", a->transactionid, id);
+
             net_event_t *n = osip_transaction_get_event(a);
             if (n) {
                 if (MSG_IS_RESPONSE_FOR(m, SIP_METHOD_REGISTER))
-                    sip_finalize_registrate(a, m);
+                    sip_finalize_registrate(a, m, n);
                 else if (MSG_IS_RESPONSE_FOR(m, SIP_METHOD_INVITE))
-                    sip_finalize_invite(a, m);
+                    sip_finalize_invite(a, m, n);
                 else if (MSG_IS_RESPONSE_FOR(m, SIP_METHOD_SUBSCRIBE))
-                    sip_finalize_subscribe(a, m);
+                    sip_finalize_subscribe(a, m, n);
 
                 sip_call(a, e);
-                net_event_update(n, NULL);
-                return;
+                return net_event_update(n, NULL);
             }
         }
+        log_alert("%: !!! NOT FOUND %i", id);
+
         return osip_event_free(e);
     }
+
+    return osip_message_free(m);
 }
 
 /**
@@ -1457,7 +1463,9 @@ void sip_destroy(void *x) {
         if (!a->last_response) {
             const void *retries = osip_transaction_get_retry(a);
             osip_message_t *m = sip_response_new(a, a->orig_request,
-                                                 retries != NULL + SIP_RETRY ? SIP_BAD_GATEWAY : SIP_REQUEST_TIME_OUT);
+                                                 retries != NULL + SIP_RETRY
+                                                     ? SIP_BAD_GATEWAY
+                                                     : SIP_REQUEST_TIME_OUT);
             sip_message_remove_top_via(m);
             cmd_finalize(m, closure, opaque);
             osip_message_free(m);

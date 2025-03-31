@@ -50,5 +50,3 @@ message answer {
 	optional sip.type.sdp sdp = 4;
 	optional sip.type.rl rl = 5;
 }
-
-

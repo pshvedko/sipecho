@@ -156,6 +156,25 @@ static void cmd_maintain_subscribe(Sip_Service *foo, const Sip__Query *query, Si
 /**
  *
  */
+int cmd_finalize(const osip_message_t *m, const Sip__Answer_Closure closure, void *opaque) {
+    log_debug("%s: %p %p %p", __PRETTY_FUNCTION__, m, closure, opaque);
+
+    if (closure) {
+        Sip__Answer *result = sip__answer__proto(m);
+        if (result) {
+            closure(result, opaque);
+            sip__answer__free_unpacked(result, 0);
+
+            return 0;
+        }
+        closure(NULL, opaque);
+    }
+    return -1;
+}
+
+/**
+ *
+ */
 static void cmd_maintain_request(Sip_Service *, const Sip__Query *query, const Sip__Answer_Closure closure,
                                  void *opaque) {
     if (!query || !query->head || !query->request || !query->head->cseq) {
@@ -180,43 +199,25 @@ static void cmd_maintain_request(Sip_Service *, const Sip__Query *query, const S
 #define cmd_finalise_info       cmd_finalise_request
 #define cmd_finalise_subscribe  cmd_finalise_request
 
+struct finalise {
+    int id;
+};
+
 /**
  *
  */
 static void cmd_finalise_request(const Sip__Answer *result, void *opaque) {
-    if (!result || !result->head || !result->response || !result->head->cseq) {
-        log_debug("%s: %s %i %p", __PRETTY_FUNCTION__, result, 0, opaque);
-
-        sip_finalize_failure(NULL - opaque);
+    struct finalise *final = opaque;
+    if (!result) {
+        final->id = 0;
         return;
     }
-    log_debug("%s: %s %i %p", __PRETTY_FUNCTION__, result->head->cseq->method, result->response, opaque);
 
     osip_message_t *m = sip__answer__unproto(result, FULL_RESPONSE_BITSET);
-    if (m) {
-        sip_finalize(m, NULL - opaque);
-        osip_message_free(m);
-    } else
-        sip_finalize_failure(NULL - opaque);
-}
+    if (m && m->status_code)
+        return sip_finalize(m, final->id);
 
-/**
- *
- */
-int cmd_finalize(const osip_message_t *m, const Sip__Answer_Closure closure, void *opaque) {
-    log_debug("%s: %p %p %p", __PRETTY_FUNCTION__, m, closure, opaque);
-
-    if (closure) {
-        Sip__Answer *result = sip__answer__proto(m);
-        if (result) {
-            closure(result, opaque);
-            sip__answer__free_unpacked(result, 0);
-
-            return 0;
-        }
-        closure(NULL, opaque);
-    }
-    return -1;
+    sip_finalize_failure(final->id);
 }
 
 /**
@@ -232,9 +233,10 @@ int cmd_initiate_registrate(osip_transaction_t *a, osip_message_t *m) {
     if (!query)
         return -2;
 
-    sip__registrate(&__cmd->base, query, cmd_finalise_registrate, NULL - a->transactionid);
+    struct finalise final = {.id = a->transactionid};
+    sip__registrate(__cmd->base, query, cmd_finalise_registrate, &final);
     sip__query__free_unpacked(query, 0);
-    return 0;
+    return final.id ? 0 : -1;
 }
 
 /**
@@ -250,9 +252,10 @@ int cmd_initiate_invite(osip_transaction_t *a, osip_message_t *m) {
     if (!query)
         return -2;
 
-    sip__invite(&__cmd->base, query, cmd_finalise_invite, NULL - a->transactionid);
+    struct finalise final = {.id = a->transactionid};
+    sip__invite(__cmd->base, query, cmd_finalise_invite, &final);
     sip__query__free_unpacked(query, 0);
-    return 0;
+    return final.id ? 0 : -1;
 }
 
 /**
@@ -268,9 +271,10 @@ int cmd_initiate_option(osip_transaction_t *a, osip_message_t *m) {
     if (!query)
         return -2;
 
-    sip__option(&__cmd->base, query, cmd_finalise_option, NULL - a->transactionid);
+    struct finalise final = {.id = a->transactionid};
+    sip__option(__cmd->base, query, cmd_finalise_option, &final);
     sip__query__free_unpacked(query, 0);
-    return 0;
+    return final.id ? 0 : -1;
 }
 
 /**
@@ -286,9 +290,10 @@ int cmd_initiate_cancel(osip_transaction_t *a, osip_message_t *m) {
     if (!query)
         return -2;
 
-    sip__cancel(&__cmd->base, query, cmd_finalise_cancel, NULL - a->transactionid);
+    struct finalise final = {.id = a->transactionid};
+    sip__cancel(__cmd->base, query, cmd_finalise_cancel, &final);
     sip__query__free_unpacked(query, 0);
-    return 0;
+    return final.id ? 0 : -1;
 }
 
 /**
@@ -304,9 +309,10 @@ int cmd_initiate_bye(osip_transaction_t *a, osip_message_t *m) {
     if (!query)
         return -2;
 
-    sip__bye(&__cmd->base, query, cmd_finalise_bye, NULL - a->transactionid);
+    struct finalise final = {.id = a->transactionid};
+    sip__bye(__cmd->base, query, cmd_finalise_bye, &final);
     sip__query__free_unpacked(query, 0);
-    return 0;
+    return final.id ? 0 : -1;
 }
 
 /**
@@ -322,9 +328,10 @@ int cmd_initiate_info(osip_transaction_t *a, osip_message_t *m) {
     if (!query)
         return -2;
 
-    sip__info(&__cmd->base, query, cmd_finalise_info, NULL - a->transactionid);
+    struct finalise final = {.id = a->transactionid};
+    sip__info(__cmd->base, query, cmd_finalise_info, &final);
     sip__query__free_unpacked(query, 0);
-    return 0;
+    return final.id ? 0 : -1;
 }
 
 /**
@@ -340,9 +347,10 @@ int cmd_initiate_subscribe(osip_transaction_t *a, osip_message_t *m) {
     if (!query)
         return -2;
 
-    sip__subscribe(&__cmd->base, query, cmd_finalise_subscribe, NULL - a->transactionid);
+    struct finalise final = {.id = a->transactionid};
+    sip__subscribe(__cmd->base, query, cmd_finalise_subscribe, &final);
     sip__query__free_unpacked(query, 0);
-    return 0;
+    return final.id ? 0 : -1;
 }
 
 /**
@@ -395,7 +403,8 @@ static int cmd_acquire(net_event_t *net) {
         __cmd->peer->port = __con->peer->port;
         __cmd->subscribes = 0;
         __cmd->ready = 0;
-        return transport_begin(__cmd, net);
+        const unsigned short port = net_event_get_port(net);
+        return __cmd->begin(__cmd, port, net);
     }
 
     return 0;
@@ -411,10 +420,10 @@ static int cmd_execute(net_event_t *net) {
               net->incoming->done,
               net->incoming->end);
 
-    const int len = transport_command(__cmd,
-                                      net->incoming->begin + net->incoming->buffer,
-                                      net->incoming->end - net->incoming->begin,
-                                      net);
+    const int len = __cmd->command(__cmd,
+                                   net->incoming->begin + net->incoming->buffer,
+                                   net->incoming->end - net->incoming->begin,
+                                   net);
     if (len < 0)
         return -1;
 
@@ -445,7 +454,7 @@ static int cmd_release(net_event_t *net) {
     const struct timeval tv = {1, 0};
     if (__con == net) {
         if (!net->id)
-            transport_end(__cmd, net);
+            __cmd->end(__cmd, net);
         else
             net_event_oneshot(cmd_oneshot, NULL, &tv);
         __con = NULL;
@@ -465,26 +474,21 @@ static int cmd_timeout(net_event_t *net) {
 
     log_debug("%s: %i/%s/%s [%lli]", __PRETTY_FUNCTION__, net->event->ev_fd, net->net->name, net->app->name, net->id);
 
-    return transport_ping(__cmd, __con);
+    return __cmd->ping(__cmd, __con);
 }
-
-/**
- *
- * @param
- */
-static void cmd_destroy(Sip_Service *) {
-}
-
 
 /**
  *
  */
 int cmd_init() {
-    static Sip_Service sip = SIP__INIT(cmd_maintain_);
-    sip__init(&sip, cmd_destroy);
+    Sip_Service sip = SIP__INIT(cmd_maintain_);
+    sip__init(&sip, NULL);
+
     __cmd = transport_new(&sip.base,
                           "sip", NULL, NULL, hostname, MQTT_CONNECT_CLEAN_SESSION, 60,
                           cmd_error, cmd_relay, NULL);
+    if (!__cmd)
+        return -1;
     return 0;
 }
 
@@ -492,7 +496,7 @@ int cmd_init() {
  *
  */
 void cmd_free() {
-    transport_destroy(__cmd);
+    __cmd->destroy(__cmd);
 }
 
 static char hostname[256] = "FIXME";

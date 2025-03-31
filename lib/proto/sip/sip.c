@@ -18,7 +18,7 @@
 static const struct {
     int code;
     const char *reason;
-} __reason[] = {
+} reasons[] = {
     {100, "Trying"},
     {180, "Ringing"},
     {181, "Call is Being Forwarded"},
@@ -93,9 +93,8 @@ static const struct {
     {-1, NULL}
 };
 
-char *sip_reason_by_code(int code) {
-    typeof(*__reason) *m;
-    for (m = __reason; m->reason; ++m)
+char *sip_reason_by_code(const int code) {
+    for (typeof(*reasons) *m = reasons; m->reason; ++m)
         if (m->code == code)
             return strdup(m->reason);
 
@@ -1056,16 +1055,16 @@ static int __content__unproto(osip_message_t *m, Sip__Type__Content **const p_co
         if (n_content || osip_list_size(&m->bodies))
             osip_body_set_contenttype(body, SIP__TYPE__CONTENT_TYPE__DTMF_RELAY);
         const int n = sprintf(dtmf, "Signal=%c%sDuration=%u",
-                        p_dtmf->signal < 0xA
-                            ? '0' + p_dtmf->signal
-                            : p_dtmf->signal == 10
-                                  ? '*'
-                                  : p_dtmf->signal == 11
-                                        ? '#'
-                                        : p_dtmf->signal < 0x10
-                                              ? 'A' + p_dtmf->signal - 12
-                                              : 0, CRLF,
-                        p_dtmf->duration);
+                              p_dtmf->signal < 0xA
+                                  ? '0' + p_dtmf->signal
+                                  : p_dtmf->signal == 10
+                                        ? '*'
+                                        : p_dtmf->signal == 11
+                                              ? '#'
+                                              : p_dtmf->signal < 0x10
+                                                    ? 'A' + p_dtmf->signal - 12
+                                                    : 0, CRLF,
+                              p_dtmf->duration);
         if (n > 0 && osip_list_add(&m->bodies, body, 0) > 0) {
             body->body = osip_strdup(dtmf);
             body->length = n;
@@ -1119,7 +1118,7 @@ static int __content__unproto(osip_message_t *m, Sip__Type__Content **const p_co
 }
 
 osip_message_t *sip__query__unproto(const Sip__Query *p, const char *method, const unsigned bitset) {
-    if (!p)
+    if (!p || p->base.descriptor != &sip__query__descriptor)
         return NULL;
 
     osip_message_t *m = NULL;
@@ -1141,7 +1140,7 @@ osip_message_t *sip__query__unproto(const Sip__Query *p, const char *method, con
 }
 
 osip_message_t *sip__answer__unproto(const Sip__Answer *p, const unsigned bitset) {
-    if (!p)
+    if (!p || p->base.descriptor != &sip__answer__descriptor) // TODO
         return NULL;
 
     osip_message_t *m = NULL;
@@ -1154,7 +1153,7 @@ osip_message_t *sip__answer__unproto(const Sip__Answer *p, const unsigned bitset
 
     // FIXME
     // if (osip_list_size(&m->bodies) > 1) {
-    // 	osip_content_length_init(&m->mime_version);
+    //	osip_mime_version_init(&m->mime_version);
     // 	if (m->mime_version)
     // 		m->mime_version->value = strdup("1.0");
     // }

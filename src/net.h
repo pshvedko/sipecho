@@ -125,4 +125,6 @@ net_event_t *net_event_find_by_bind(const char *, const char *);
 
 const char *net_event_type(net_event_t *);
 
+in_port_t net_event_get_port(net_event_t *);
+
 #endif /* NET_H_ */

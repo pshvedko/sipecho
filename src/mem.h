@@ -24,7 +24,7 @@ typedef struct mem {
     } peer[1];
 } mem_t;
 
-#define MEM_INITIALIZER	{ 0, 0, 0, 0, 0, { { 0 }, 0 } }
+#define MEM_INITIALIZER(__buf, __len) {.buffer = (__buf), .length = (__len), .begin = 0, .done = 0, .end = (__len), .peer = {{.a = 0, .l = 0}}}
 
 mem_t *mem_new(void *, unsigned short, struct sockaddr *, unsigned);
 

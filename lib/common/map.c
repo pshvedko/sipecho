@@ -22,9 +22,9 @@ typedef enum {
     leaf
 } VISIT;
 
-typedef int (*__compar_fn_t)(const void *, const void *);
+typedef int (*__compar_d_fn_t)(const void *, const void *, const void *);
 
-typedef void (*__action_fn_t)(const void *, VISIT, int);
+typedef int (*__action_fn_t)(const void *, VISIT, int, const void *);
 
 typedef void (*__free_fn_t)(void *);
 
@@ -121,7 +121,7 @@ static void maybe_split_for_insert(node *rootp, node *parentp, node *gparentp, i
  * KEY is the key to be located, ROOTP is the address of tree root,
  * COMPAR the ordering function.
  */
-static void *tsearch2(const void *key, void **vrootp, __compar_fn_t compar) {
+static void *tsearch2(const void *key, void **vrootp, __compar_d_fn_t compar, const void *arg) {
     node q;
     node *parentp = NULL, *gparentp = NULL;
     node *rootp = (node *) vrootp;
@@ -138,7 +138,7 @@ static void *tsearch2(const void *key, void **vrootp, __compar_fn_t compar) {
     nextp = rootp;
     while (*nextp != NULL) {
         node root = *rootp;
-        r = (*compar)(key, root->key);
+        r = (*compar)(key, root->key, arg);
         if (r == 0)
             return root;
 
@@ -183,7 +183,7 @@ static void *tsearch2(const void *key, void **vrootp, __compar_fn_t compar) {
  * KEY is the key to be located, ROOTP is the address of tree root,
  * COMPAR the ordering function.
  */
-static void *tfind2(const void *key, void *const *vrootp, __compar_fn_t compar) {
+static void *tfind2(const void *key, void *const *vrootp, __compar_d_fn_t compar, const void *arg) {
     node *rootp = (node *) vrootp;
 
     if (rootp == NULL)
@@ -193,7 +193,7 @@ static void *tfind2(const void *key, void *const *vrootp, __compar_fn_t compar) 
         node root = *rootp;
         int r;
 
-        r = (*compar)(key, root->key);
+        r = (*compar)(key, root->key, arg);
         if (r == 0)
             return root;
 
@@ -207,7 +207,7 @@ static void *tfind2(const void *key, void *const *vrootp, __compar_fn_t compar) 
  * KEY is the key to be deleted, ROOTP is the address of the root of tree,
  * COMPAR the comparison function.
  */
-static void *tdelete2(const void *key, void **vrootp, __compar_fn_t compar) {
+static void *tdelete2(const void *key, void **vrootp, __compar_d_fn_t compar, const void *arg) {
     node p, q, r, retval;
     int cmp;
     node *rootp = (node *) vrootp;
@@ -228,7 +228,7 @@ static void *tdelete2(const void *key, void **vrootp, __compar_fn_t compar) {
     if (p == NULL)
         return NULL;
 
-    while ((cmp = (*compar)(key, (*rootp)->key)) != 0) {
+    while ((cmp = (*compar)(key, (*rootp)->key, arg)) != 0) {
         if (sp == stacksize)
             abort();
 
@@ -450,31 +450,49 @@ static void *tdelete2(const void *key, void **vrootp, __compar_fn_t compar) {
  * ROOT is the root of the tree to be walked, ACTION the function to be called at each node.
  * LEVEL is the level of ROOT in the whole tree.
  */
-static void trecurse(const void *vroot, __action_fn_t action, int level) {
+static int trecurse(const void *vroot, __action_fn_t action, int level, const void *arg) {
+    int r;
     const_node root = (const_node) vroot;
 
-    if (root->left == NULL && root->right == NULL)
-        (*action)(root, leaf, level);
-    else {
-        (*action)(root, preorder, level);
-        if (root->left != NULL)
-            trecurse(root->left, action, level + 1);
-        (*action)(root, postorder, level);
-        if (root->right != NULL)
-            trecurse(root->right, action, level + 1);
-        (*action)(root, endorder, level);
+    if (root->left == NULL && root->right == NULL) {
+        r = (*action)(root, leaf, level, arg);
+        if (r)
+            return r;
+    } else {
+        r = (*action)(root, preorder, level, arg);
+        if (r)
+            return r;
+        if (root->left != NULL) {
+            r = trecurse(root->left, action, level + 1, arg);
+            if (r)
+                return r;
+        }
+        r = (*action)(root, postorder, level, arg);
+        if (r)
+            return r;
+        if (root->right != NULL) {
+            r = trecurse(root->right, action, level + 1, arg);
+            if (r)
+                return r;
+        }
+        r = (*action)(root, endorder, level, arg);
+        if (r)
+            return r;
     }
+
+    return r;
 }
 
 /*
  * Walk the nodes of a tree.
  * ROOT is the root of the tree to be walked, ACTION the function to be called at each node.
  */
-static void twalk2(const void *vroot, __action_fn_t action) {
+static int twalk2(const void *vroot, __action_fn_t action, const void *arg) {
     const_node root = (const_node) vroot;
 
     if (root != NULL && action != NULL)
-        trecurse(root, action, 0);
+        return trecurse(root, action, 0, arg);
+    return 0;
 }
 
 /*
@@ -512,7 +530,6 @@ static void tdestroy2(void *proot, __free_fn_t free_fn) {
 #endif
 #define MAP_LOCK_RELEASE(m, type, x)    do { type X = x; MAP_LOCK_RESTORE(m); return X; } while(0)
 #define MAP_NODE_FAILURE                ((void *) -1)
-#define MAP_LIKE_DECLARE                int cmp(const void *a, const void *b) { return map->__like(map, a, b, index); }
 
 /*
  *
@@ -764,27 +781,40 @@ map_t *map_new(const map_del_t del, const map_cmp_t cmp, ...) {
 /**
  *
  */
+typedef struct map_iterator {
+    const map_exe_t exe;
+    void *foo;
+} map_iterator_t;
+
+/**
+ *
+ * @param node
+ * @param which
+ * @param deep
+ * @param arg
+ * @return
+ */
+int map_internal_action(const void *node, VISIT which, int deep, const void *arg) {
+    const struct map_iterator *iter = arg;
+    switch (which) {
+        case leaf:
+        case postorder:
+            return iter->exe(*(const map_node_t **) node, iter->foo);
+        default:
+            return 0;
+    }
+}
+
+/**
+ *
+ */
 int map_walk(map_t *map, const int index, const map_exe_t exe, void *foo) {
     MAP_LOCK_ACQUIRE(map);
 
     if (map->max > index) {
-        int fail = 0;
+        map_iterator_t iter = {.exe = exe, .foo = foo};
 
-        void action(const void *node, VISIT which, int deep) {
-            switch (which) {
-                case preorder:
-                    break;
-                case postorder:
-                    fail += exe(*(const map_node_t **) node, foo);
-                    break;
-                case endorder:
-                    break;
-                case leaf:
-                    fail += exe(*(const map_node_t **) node, foo);
-                    break;
-            }
-        }
-        twalk2(map->key[index].root, action);
+        int fail = twalk2(map->key[index].root, map_internal_action, &iter);
 
         MAP_LOCK_RELEASE(map, int, fail);
     }
@@ -794,8 +824,8 @@ int map_walk(map_t *map, const int index, const map_exe_t exe, void *foo) {
 /**
  *
  */
-static int map_item_push(const void *item, void *map) {
-    return map_push(map, ((const map_node_t *) item)->item);
+static int map_item_push(const void *node, void *map) {
+    return map_push(map, ((const map_node_t *) node)->item);
 }
 
 /**
@@ -819,6 +849,26 @@ map_t *map_map(const map_type_t type, map_t *old, const int index, const map_del
 /**
  *
  */
+typedef struct map_compare {
+    map_t *map;
+    int index;
+} map_compare_t;
+
+/**
+ *
+ * @param a
+ * @param b
+ * @param p
+ * @return
+ */
+static int map_internal_cmp2(const void *a, const void *b, const void *p) {
+    const struct map_compare *q = p;
+    return q->map->__like(q->map, a, b, q->index);
+}
+
+/**
+ *
+ */
 static void *map_remove(map_t *map, map_node_t *node) {
     if (!map || !node)
         return 0;
@@ -836,9 +886,9 @@ static void *map_remove(map_t *map, map_node_t *node) {
     int index = 0;
 
     while (map->max > index) {
-        MAP_LIKE_DECLARE
+        map_compare_t cmp = {.map = map, .index = index};
 
-        tdelete2(node, &map->key[index].root, cmp);
+        tdelete2(node, &map->key[index].root, map_internal_cmp2, &cmp);
 
         index++;
     }
@@ -916,9 +966,9 @@ void map_free(map_t *map) {
  */
 static map_node_t *map_key(map_t *map, map_node_t *node, const int index) {
     if (map->max > index) {
-        MAP_LIKE_DECLARE
+        map_compare_t cmp = {.map = map, .index = index};
 
-        void **leaf = tsearch2(node, &map->key[index].root, cmp);
+        void **leaf = tsearch2(node, &map->key[index].root, map_internal_cmp2, &cmp);
 
         if (!leaf)
             return MAP_NODE_FAILURE;
@@ -927,7 +977,7 @@ static map_node_t *map_key(map_t *map, map_node_t *node, const int index) {
             return *leaf;
 
         if (map_key(map, node, index + 1)) {
-            tdelete2(node, &map->key[index].root, cmp);
+            tdelete2(node, &map->key[index].root, map_internal_cmp2, &cmp);
             return MAP_NODE_FAILURE;
         }
     }
@@ -1178,11 +1228,11 @@ void *map_pop_back_when(map_t *map, const map_exe_t yes, void *foo) {
  */
 static map_node_t *map_search(map_t *map, void *item, const int index) {
     if (map && index < map->max) {
-        MAP_LIKE_DECLARE;
-
         map_node_t node = {.item = item};
 
-        map_node_t **leaf = tfind2(&node, &map->key[index].root, cmp);
+        map_compare_t cmp = {.map = map, .index = index};
+
+        map_node_t **leaf = tfind2(&node, &map->key[index].root, map_internal_cmp2, &cmp);
         if (leaf)
             return *leaf;
     }

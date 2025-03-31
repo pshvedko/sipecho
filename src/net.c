@@ -58,6 +58,28 @@ int net_port(const osip_uri_t *u) {
 
 /**
  *
+ * @param net
+ * @return
+ */
+in_port_t net_event_get_port(net_event_t *net) {
+    if (!net)
+        return 0;
+    struct sockaddr sa;
+    socklen_t sl = sizeof(struct sockaddr);
+    if (getsockname(net->event->ev_fd, &sa, &sl) != 0)
+        return 0;
+    switch (sa.sa_family) {
+        case AF_INET:
+            return ntohs(((struct sockaddr_in *) &sa)->sin_port);
+        case AF_INET6:
+            return ntohs(((struct sockaddr_in6 *) &sa)->sin6_port);
+        default:
+            return 0;
+    }
+}
+
+/**
+ *
  */
 int net_event_oneshot(const event_callback_fn callback, void *arg, const struct timeval *timeout) {
     return event_base_once(__net, -1, EV_TIMEOUT, callback, arg, timeout);

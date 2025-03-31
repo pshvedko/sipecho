@@ -12,7 +12,10 @@
 #include "lib/mqtt/mqtt.h"
 
 typedef struct transport {
-    ProtobufCService base, *service;
+    ProtobufCService base[1];
+
+    void (*invoke)(ProtobufCService *, unsigned, const ProtobufCMessage *, void (*)(const ProtobufCMessage *, void *),
+                   void *);
 
     int (*error)(long, const char *, void *);
 
@@ -27,15 +30,29 @@ typedef struct transport {
     const char *user;
     const char *password;
     const char *host;
+
     uint8_t flags;
     uint16_t alive;
+
+    int (*begin)(struct transport *, unsigned short, void *);
+
+    int (*subscribe)(struct transport *, void *);
+
+    int (*ping)(struct transport *, void *);
+
+    int (*command)(struct transport *, void *, unsigned short, void *);
+
+    void (*destroy)(struct transport *);
+
+    int (*end)(struct transport *, void *);
+
+    unsigned short port;
     int subscribes;
-
     long ready;
-    void *foo1;
-} transport_t;
+    void *foo;
 
-void transport_destroy(transport_t *);
+    void (*methods[])();
+} transport_t;
 
 transport_t *transport_new(ProtobufCService *,
                            const char *id,
@@ -46,15 +63,5 @@ transport_t *transport_new(ProtobufCService *,
                            uint16_t alive,
                            int (*)(long, const char *, void *),
                            int (*)(char *, unsigned short, void *), void *);
-
-int transport_begin(transport_t *, void *);
-
-int transport_command(transport_t *, void *, unsigned short, void *);
-
-int transport_end(transport_t *, void *);
-
-int transport_ping(transport_t *, void *);
-
-int transport_subscribe(transport_t *, void *);
 
 #endif //TRANSPORT_H

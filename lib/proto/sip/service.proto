@@ -12,4 +12,3 @@ service Sip {
 	rpc subscribe (sip.query) returns (sip.answer);
 	rpc notify (sip.query) returns (sip.answer);
 }
-
