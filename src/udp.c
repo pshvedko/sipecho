@@ -100,5 +100,6 @@ const net_t __g_net_UDP = {
     NULL,
     NULL,
     NULL,
-    NULL
+    NULL,
+    NULL,
 };

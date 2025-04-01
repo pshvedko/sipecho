@@ -1516,6 +1516,7 @@ const app_t __g_app_SIP = {
     NULL /* release */,
     sip_execute,
     NULL,
+    NULL,
     {{sip_destroy, map_item_cmp}},
     {1, 0}
 };

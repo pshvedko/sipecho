@@ -64,6 +64,7 @@ typedef struct net_event {
     struct map *outgoing;
     struct map *entities;
     struct event *event;
+    const char **argv;
 
     enum {
         NET_TYPE_UNDEFINED = 0,
@@ -93,11 +94,11 @@ int net_port(const osip_uri_t *);
 
 int net_bind(const net_t *, const app_t *);
 
-int net_open(const net_t *, const app_t *, const char *, unsigned short);
+int net_open(const net_t *, const app_t *, const char *, unsigned short, ...);
 
 int net_send(net_event_t *, mem_t *);
 
-net_event_t *net_event_connect(const char *, const char *, const char *, unsigned short);
+net_event_t *net_event_connect(const char *, const char *, const char *, unsigned short, ...);
 
 net_event_t *net_event_open(const net_t *, const app_t *);
 

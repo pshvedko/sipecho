@@ -193,5 +193,5 @@ const net_t __g_net_TCP = {
     tcp_accept,
     NULL,
     NULL,
-    NULL
+    NULL,
 };

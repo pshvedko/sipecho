@@ -697,13 +697,14 @@ static int __content__proto(const osip_message_t *m, Sip__Type__Content ***p_con
     return z;
 }
 
-Sip__Query *sip__query__proto(const osip_message_t *m) {
+Sip__Query *sip__query__proto(const osip_message_t *m, const int id) {
     if (!m)
         return NULL;
 
     Sip__Query *p = malloc(sizeof(Sip__Query));
     while (p) {
         sip__query__init(p);
+        p->id = id;
         p->request = sip__type__uri__proto(m->req_uri);
         if (m->req_uri && !p->request)
             break;
@@ -721,13 +722,14 @@ Sip__Query *sip__query__proto(const osip_message_t *m) {
     return NULL;
 }
 
-Sip__Answer *sip__answer__proto(const osip_message_t *m) {
+Sip__Answer *sip__answer__proto(const osip_message_t *m, const int id) {
     if (!m)
         return NULL;
 
     Sip__Answer *p = malloc(sizeof(Sip__Answer));
     while (p) {
         sip__answer__init(p);
+        p->id = id;
         p->response = m->status_code;
         p->head = sip__head__proto(m);
         if (!p->head)
@@ -1117,9 +1119,12 @@ static int __content__unproto(osip_message_t *m, Sip__Type__Content **const p_co
                             (void *(*)(const void *)) &sip__type__content__unproto);
 }
 
-osip_message_t *sip__query__unproto(const Sip__Query *p, const char *method, const unsigned bitset) {
+osip_message_t *sip__query__unproto(const Sip__Query *p, const char *method, const unsigned bitset, int *id) {
     if (!p || p->base.descriptor != &sip__query__descriptor)
         return NULL;
+
+    if (id)
+        *id = p->id;
 
     osip_message_t *m = NULL;
     osip_message_init(&m);
@@ -1139,9 +1144,12 @@ osip_message_t *sip__query__unproto(const Sip__Query *p, const char *method, con
     return sip__head__unproto(m, p->head, bitset);
 }
 
-osip_message_t *sip__answer__unproto(const Sip__Answer *p, const unsigned bitset) {
+osip_message_t *sip__answer__unproto(const Sip__Answer *p, const unsigned bitset, int *id) {
     if (!p || p->base.descriptor != &sip__answer__descriptor) // TODO
         return NULL;
+
+    if (id)
+        *id = p->id;
 
     osip_message_t *m = NULL;
     osip_message_init(&m);

@@ -17,22 +17,18 @@ typedef struct transport {
     void (*invoke)(ProtobufCService *, unsigned, const ProtobufCMessage *, void (*)(const ProtobufCMessage *, void *),
                    void *);
 
-    int (*error)(long, const char *, void *);
+    int (*error)(void *, long, const char *);
 
-    int (*relay)(char *, unsigned short, void *);
+    int (*relay)(void *, char *, unsigned short);
 
-    struct {
-        const char *host;
-        unsigned short port;
-    } peer[1];
-
-    const char *id;
+    const char *to;
     const char *user;
     const char *password;
     const char *host;
 
     uint8_t flags;
     uint16_t alive;
+    uint16_t id;
 
     int (*begin)(struct transport *, unsigned short, void *);
 
@@ -42,7 +38,7 @@ typedef struct transport {
 
     int (*command)(struct transport *, void *, unsigned short, void *);
 
-    void (*destroy)(struct transport *);
+    int (*destroy)(struct transport *, int);
 
     int (*end)(struct transport *, void *);
 
@@ -52,16 +48,17 @@ typedef struct transport {
     void *foo;
 
     void (*methods[])();
+
 } transport_t;
 
 transport_t *transport_new(ProtobufCService *,
-                           const char *id,
+                           const char *to,
                            const char *user,
                            const char *password,
                            const char *host,
                            uint8_t flags,
                            uint16_t alive,
-                           int (*)(long, const char *, void *),
-                           int (*)(char *, unsigned short, void *), void *);
+                           int (*)(void *, long, const char *),
+                           int (*)(void *, char *, unsigned short), void *);
 
 #endif //TRANSPORT_H

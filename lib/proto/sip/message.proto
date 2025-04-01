@@ -33,20 +33,22 @@ message head {
 }
 
 message query {
-	required sip.type.uri request = 1;
-	required head head = 2;
-	repeated sip.type.content content = 3;
-	optional sip.type.sdp sdp = 4;
-	optional sip.type.vfu vfu = 5;
-	optional sip.type.dtmf dtmf = 6;
-	optional sip.type.pidf pidf = 7;
-	optional sip.type.rl rl = 8;
+	required int32 id = 1;
+	required sip.type.uri request = 2;
+	required head head = 3;
+	repeated sip.type.content content = 4;
+	optional sip.type.sdp sdp = 5;
+	optional sip.type.vfu vfu = 6;
+	optional sip.type.dtmf dtmf = 7;
+	optional sip.type.pidf pidf = 8;
+	optional sip.type.rl rl = 9;
 }
 
 message answer {
-	required int32 response = 1;
-	required head head = 2;
-	repeated sip.type.content content = 3;
-	optional sip.type.sdp sdp = 4;
-	optional sip.type.rl rl = 5;
+	required int32 id = 1;
+	required int32 response = 2;
+	required head head = 3;
+	repeated sip.type.content content = 4;
+	optional sip.type.sdp sdp = 5;
+	optional sip.type.rl rl = 6;
 }

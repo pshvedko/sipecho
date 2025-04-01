@@ -61,6 +61,8 @@ struct app {
 
     int (*timeout)(net_event_t *);
 
+    int (*connect)(net_event_t *, const va_list);
+
     struct {
         map_del_t destroy;
         map_cmp_t compare;
@@ -96,8 +98,6 @@ void sip_proxy(osip_message_t *, Sip__Answer_Closure, void *);
 int cmd_init();
 
 void cmd_free();
-
-void cmd_delete(void *);
 
 int cmd_initiate_registrate(osip_transaction_t *, osip_message_t *);
 

@@ -53,57 +53,93 @@
 #define sip__type__m_medias__proto					sip__type__sdp__media__proto
 #define sip__type__t_descrs__proto					sip__type__sdp__time__proto
 
-Sip__Type__CallId * sip__type__call_id__new(const char *, const char *);
-Sip__Type__Cseq * sip__type__cseq__new(const char *, const char *);
-Sip__Type__Pair * sip__type__pair__new(const char *, const char *);
-Sip__Type__Uri * sip__type__uri__new(const char *, const char *, const char *, const char *, const char *,
-		const char *);
-Sip__Type__Address * sip__type__address__new(const char *);
-Sip__Type__ContentType * sip__type__content_type__new(const char *, const char *);
-Sip__Type__Authorization * sip__type__authorization__new(const char *, const char *, const char *,
-		const char *, const char *, const char *, const char *, const char *, const char *, const char *,
-		const char *, const char *, const char *);
-Sip__Type__Authenticate * sip__type__authenticate__new(const char *, const char *, const char *, const char *,
-		const char *, const char *, const char *, const char *, const char *);
-Sip__Type__Authentication * sip__type__authentication__new(const char *, const char *, const char *,
-		const char *, const char *);
-Sip__Type__Encode * sip__type__encode__new(const char *);
-Sip__Type__Via * sip__type__via__new(const char *, const char *, const char *, const char *, const char *);
+Sip__Type__CallId *sip__type__call_id__new(const char *, const char *);
 
-Sip__Type__CallId * sip__type__call_id__proto(const osip_call_id_t *);
-Sip__Type__Cseq * sip__type__cseq__proto(const osip_cseq_t *);
-Sip__Type__Pair * sip__type__pair__proto(const osip_generic_param_t *);
-Sip__Type__Uri * sip__type__uri__proto(const osip_uri_t *);
-Sip__Type__Address * sip__type__address__proto(const osip_from_t *);
-Sip__Type__ContentType * sip__type__content_type__proto(const osip_content_type_t *);
-Sip__Type__Content * sip__type__content__proto(const osip_body_t *);
-Sip__Type__Authorization * sip__type__authorization__proto(const osip_authorization_t *);
-Sip__Type__Authenticate * sip__type__authenticate__proto(const osip_www_authenticate_t *);
-Sip__Type__Authentication * sip__type__authentication__proto(const osip_authentication_info_t *);
-Sip__Type__Encode * sip__type__encode__proto(const osip_accept_encoding_t *);
-Sip__Type__Via * sip__type__via__proto(const osip_via_t *);
+Sip__Type__Cseq *sip__type__cseq__new(const char *, const char *);
 
-Sip__Type__Sdp__Connection * sip__type__sdp__connection__new(const char *, const char *, const char *,
-		const char *, const char *);
-Sip__Type__Sdp__Bandwidth * sip__type__sdp__bandwidth__new(const char *, const char *);
-Sip__Type__Sdp__Time * sip__type__sdp__time__new(const char *, const char *);
-Sip__Type__Sdp__Key * sip__type__sdp__key__new(const char *, const char *);
-Sip__Type__Sdp__Attribute * sip__type__sdp__attribute__new(const char *, const char *);
-Sip__Type__Sdp__Media * sip__type__sdp__media__new(const char *, const char *, const char *, const char *,
-		const char *);
-Sip__Type__Sdp * sip__type__sdp__new(const char *, const char *, const char *, const char *, const char *,
-		const char *, const char *, const char *, const char *, const char *, const char *);
+Sip__Type__Pair *sip__type__pair__new(const char *, const char *);
 
-Sip__Type__Sdp__Connection * sip__type__sdp__connection__proto(const sdp_connection_t *q);
-Sip__Type__Sdp__Bandwidth * sip__type__sdp__bandwidth__proto(const sdp_bandwidth_t *q);
-Sip__Type__Sdp__Time * sip__type__sdp__time__proto(const sdp_time_descr_t *q);
-Sip__Type__Sdp__Key * sip__type__sdp__key__proto(const sdp_key_t *q);
-Sip__Type__Sdp__Attribute * sip__type__sdp__attribute__proto(const sdp_attribute_t *q);
-Sip__Type__Sdp__Media * sip__type__sdp__media__proto(const sdp_media_t *q);
-Sip__Type__Sdp * sip__type__sdp__proto(const sdp_message_t *);
+Sip__Type__Uri *sip__type__uri__new(const char *, const char *, const char *, const char *, const char *,
+                                    const char *);
 
-Sip__Query * sip__query__proto(const osip_message_t *);
-Sip__Answer * sip__answer__proto(const osip_message_t *);
+Sip__Type__Address *sip__type__address__new(const char *);
+
+Sip__Type__ContentType *sip__type__content_type__new(const char *, const char *);
+
+Sip__Type__Authorization *sip__type__authorization__new(const char *, const char *, const char *,
+                                                        const char *, const char *, const char *, const char *,
+                                                        const char *, const char *, const char *,
+                                                        const char *, const char *, const char *);
+
+Sip__Type__Authenticate *sip__type__authenticate__new(const char *, const char *, const char *, const char *,
+                                                      const char *, const char *, const char *, const char *,
+                                                      const char *);
+
+Sip__Type__Authentication *sip__type__authentication__new(const char *, const char *, const char *,
+                                                          const char *, const char *);
+
+Sip__Type__Encode *sip__type__encode__new(const char *);
+
+Sip__Type__Via *sip__type__via__new(const char *, const char *, const char *, const char *, const char *);
+
+Sip__Type__CallId *sip__type__call_id__proto(const osip_call_id_t *);
+
+Sip__Type__Cseq *sip__type__cseq__proto(const osip_cseq_t *);
+
+Sip__Type__Pair *sip__type__pair__proto(const osip_generic_param_t *);
+
+Sip__Type__Uri *sip__type__uri__proto(const osip_uri_t *);
+
+Sip__Type__Address *sip__type__address__proto(const osip_from_t *);
+
+Sip__Type__ContentType *sip__type__content_type__proto(const osip_content_type_t *);
+
+Sip__Type__Content *sip__type__content__proto(const osip_body_t *);
+
+Sip__Type__Authorization *sip__type__authorization__proto(const osip_authorization_t *);
+
+Sip__Type__Authenticate *sip__type__authenticate__proto(const osip_www_authenticate_t *);
+
+Sip__Type__Authentication *sip__type__authentication__proto(const osip_authentication_info_t *);
+
+Sip__Type__Encode *sip__type__encode__proto(const osip_accept_encoding_t *);
+
+Sip__Type__Via *sip__type__via__proto(const osip_via_t *);
+
+Sip__Type__Sdp__Connection *sip__type__sdp__connection__new(const char *, const char *, const char *,
+                                                            const char *, const char *);
+
+Sip__Type__Sdp__Bandwidth *sip__type__sdp__bandwidth__new(const char *, const char *);
+
+Sip__Type__Sdp__Time *sip__type__sdp__time__new(const char *, const char *);
+
+Sip__Type__Sdp__Key *sip__type__sdp__key__new(const char *, const char *);
+
+Sip__Type__Sdp__Attribute *sip__type__sdp__attribute__new(const char *, const char *);
+
+Sip__Type__Sdp__Media *sip__type__sdp__media__new(const char *, const char *, const char *, const char *,
+                                                  const char *);
+
+Sip__Type__Sdp *sip__type__sdp__new(const char *, const char *, const char *, const char *, const char *,
+                                    const char *, const char *, const char *, const char *, const char *, const char *);
+
+Sip__Type__Sdp__Connection *sip__type__sdp__connection__proto(const sdp_connection_t *);
+
+Sip__Type__Sdp__Bandwidth *sip__type__sdp__bandwidth__proto(const sdp_bandwidth_t *);
+
+Sip__Type__Sdp__Time *sip__type__sdp__time__proto(const sdp_time_descr_t *);
+
+Sip__Type__Sdp__Key *sip__type__sdp__key__proto(const sdp_key_t *);
+
+Sip__Type__Sdp__Attribute *sip__type__sdp__attribute__proto(const sdp_attribute_t *);
+
+Sip__Type__Sdp__Media *sip__type__sdp__media__proto(const sdp_media_t *);
+
+Sip__Type__Sdp *sip__type__sdp__proto(const sdp_message_t *);
+
+Sip__Query *sip__query__proto(const osip_message_t *, int);
+
+Sip__Answer *sip__answer__proto(const osip_message_t *, int);
 
 #define sip__type__accept__unproto 					sip__type__content_type__unproto
 #define sip__type__accept_encoding__unproto 		sip__type__encode__unproto
@@ -135,29 +171,47 @@ Sip__Answer * sip__answer__proto(const osip_message_t *);
 #define sip__type__m_payloads__unproto 				sip__type__char__unproto
 #define sip__type__c_connections__unproto			sip__type__sdp__connection__unproto
 
-osip_call_id_t * sip__type__call_id__unproto(const Sip__Type__CallId *);
-osip_cseq_t * sip__type__cseq__unproto(const Sip__Type__Cseq *);
-osip_generic_param_t * sip__type__pair__unproto(const Sip__Type__Pair *);
-osip_uri_t * sip__type__uri__unproto(const Sip__Type__Uri *);
-osip_from_t * sip__type__address__unproto(const Sip__Type__Address *);
-osip_content_type_t * sip__type__content_type__unproto(const Sip__Type__ContentType *);
-osip_body_t * sip__type__content__unproto(const Sip__Type__Content *);
-osip_authorization_t * sip__type__authorization__unproto(const Sip__Type__Authorization *);
-osip_www_authenticate_t * sip__type__authenticate__unproto(const Sip__Type__Authenticate *);
-osip_authentication_info_t * sip__type__authentication__unproto(const Sip__Type__Authentication *);
-osip_accept_encoding_t * sip__type__encode__unproto(const Sip__Type__Encode *);
-osip_via_t * sip__type__via__unproto(const Sip__Type__Via *);
+osip_call_id_t *sip__type__call_id__unproto(const Sip__Type__CallId *);
 
-sdp_connection_t * sip__type__sdp__connection__unproto(const Sip__Type__Sdp__Connection *);
-sdp_key_t * sip__type__sdp__key__unproto(const Sip__Type__Sdp__Key *);
-sdp_bandwidth_t * sip__type__sdp__bandwidth__unproto(const Sip__Type__Sdp__Bandwidth *);
-sdp_time_descr_t * sip__type__sdp__time__unproto(const Sip__Type__Sdp__Time *);
-sdp_attribute_t * sip__type__sdp__attribute__unproto(const Sip__Type__Sdp__Attribute *);
-sdp_media_t * sip__type__sdp__media__unproto(const Sip__Type__Sdp__Media *);
-sdp_message_t * sip__type__sdp__unproto(const Sip__Type__Sdp *);
+osip_cseq_t *sip__type__cseq__unproto(const Sip__Type__Cseq *);
 
-osip_message_t * sip__query__unproto(const Sip__Query*, const char *, unsigned);
-osip_message_t * sip__answer__unproto(const Sip__Answer*, unsigned);
+osip_generic_param_t *sip__type__pair__unproto(const Sip__Type__Pair *);
+
+osip_uri_t *sip__type__uri__unproto(const Sip__Type__Uri *);
+
+osip_from_t *sip__type__address__unproto(const Sip__Type__Address *);
+
+osip_content_type_t *sip__type__content_type__unproto(const Sip__Type__ContentType *);
+
+osip_body_t *sip__type__content__unproto(const Sip__Type__Content *);
+
+osip_authorization_t *sip__type__authorization__unproto(const Sip__Type__Authorization *);
+
+osip_www_authenticate_t *sip__type__authenticate__unproto(const Sip__Type__Authenticate *);
+
+osip_authentication_info_t *sip__type__authentication__unproto(const Sip__Type__Authentication *);
+
+osip_accept_encoding_t *sip__type__encode__unproto(const Sip__Type__Encode *);
+
+osip_via_t *sip__type__via__unproto(const Sip__Type__Via *);
+
+sdp_connection_t *sip__type__sdp__connection__unproto(const Sip__Type__Sdp__Connection *);
+
+sdp_key_t *sip__type__sdp__key__unproto(const Sip__Type__Sdp__Key *);
+
+sdp_bandwidth_t *sip__type__sdp__bandwidth__unproto(const Sip__Type__Sdp__Bandwidth *);
+
+sdp_time_descr_t *sip__type__sdp__time__unproto(const Sip__Type__Sdp__Time *);
+
+sdp_attribute_t *sip__type__sdp__attribute__unproto(const Sip__Type__Sdp__Attribute *);
+
+sdp_media_t *sip__type__sdp__media__unproto(const Sip__Type__Sdp__Media *);
+
+sdp_message_t *sip__type__sdp__unproto(const Sip__Type__Sdp *);
+
+osip_message_t *sip__query__unproto(const Sip__Query *, const char *, unsigned, int *id);
+
+osip_message_t *sip__answer__unproto(const Sip__Answer *, unsigned, int *id);
 
 enum {
 	SIP__BIT__FROM,

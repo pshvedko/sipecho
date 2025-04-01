@@ -148,6 +148,7 @@ static int net_event_delete(net_event_t *event) {
         default:
             break;
     }
+    free(event->argv);
     free(event);
 
     return s;
@@ -244,6 +245,9 @@ static void net_callback_inout(const int s, const short flag, void *arg) {
                     }
                 }
             }
+            if (flag & EV_TIMEOUT)
+                if (event->app->timeout)
+                    event->app->timeout(event);
             return net_event_update(event, NULL);
         } while (0);
     }
@@ -270,6 +274,8 @@ static void net_callback_accept(const int s, const short flag, void *arg) {
     if (!event->net->accept)
         return net_callback_inout(s, flag, arg);
 
+    log_debug("%s: %i/%s/%s [%hu]", __PRETTY_FUNCTION__, s, event->net->name, event->app->name, flag);
+
     struct sockaddr a;
     socklen_t l = sizeof(a);
 
@@ -293,7 +299,7 @@ static void net_callback_accept(const int s, const short flag, void *arg) {
                     log_error("%s: %i/%s/%s %m", __PRETTY_FUNCTION__, c, child->net->name, child->app->name);
                     net_event_close(child);
                 } else
-                    event_add(child->event, NULL);
+                    event_add(child->event, child->app->timeout ? &child->app->delay : NULL);
             } else
                 close(c);
         }
@@ -327,9 +333,9 @@ static void net_callback_connect(const int s, const short flag, void *arg) {
 /**
  * *
  */
-net_event_t *net_event_connect(const char *net_name, const char *app_name, const char *host,
-                               const unsigned short port) {
-    net_event_t *bound = net_event_find_by_bind(net_name, app_name);
+net_event_t *net_event_connect_v(const char *net, const char *app, const char *host,
+                                 const unsigned short port, const va_list ap) {
+    net_event_t *bound = net_event_find_by_bind(net, app);
     if (bound) {
         if (!bound->net->connect) {
             return bound;
@@ -352,7 +358,8 @@ net_event_t *net_event_connect(const char *net_name, const char *app_name, const
                 log_debug("%s: %i/%s/%s %s:%hu", __PRETTY_FUNCTION__, s, event->net->name, event->app->name,
                           host, port);
 
-                if ((event->app->acquire && event->app->acquire(event)) ||
+                if ((event->app->connect && event->app->connect(event, ap)) ||
+                    (event->app->acquire && event->app->acquire(event)) ||
                     (event->net->assign &&
                      event->net->assign(event->net, event->event->ev_fd, event->type, &event->foo))) {
                     log_error("%s: %i/%s/%s %m", __PRETTY_FUNCTION__, s, event->net->name, event->app->name);
@@ -363,6 +370,14 @@ net_event_t *net_event_connect(const char *net_name, const char *app_name, const
         }
     }
     return NULL;
+}
+
+net_event_t *net_event_connect(const char *net, const char *app, const char *host, const unsigned short port, ...) {
+    va_list ap;
+    va_start(ap, port);
+    net_event_t *event = net_event_connect_v(net, app, host, port, ap);
+    va_end(ap);
+    return event;
 }
 
 /**
@@ -424,13 +439,22 @@ int net_bind(const net_t *net, const app_t *app) {
 /**
  *
  */
-int net_open(const net_t *net, const app_t *app, const char *host, const unsigned short port) {
-    net_event_t *event = net_event_connect(net->name, app->name, host, port);
+int net_open(const net_t *net, const app_t *app, const char *host, const unsigned short port, ...) {
+    va_list args;
+    va_start(args, port);
+    net_event_t *event = net_event_connect_v(net->name, app->name, host, port, args);
+    va_end(args);
     if (!event) {
         log_fatal("%s: %s/%s/%s:%hu failed: %m", __PRETTY_FUNCTION__, net->name, app->name, host, port);
         return -1;
     }
-    return event_add(event->event, NULL);
+    //  int err = 0;
+    // if (app->connect)
+    //     err = app->connect(event, args);
+    //    if (!err)
+    return event_add(event->event, event->app->timeout ? &event->app->delay : NULL);
+    // net_event_close(event);
+    // return err;
 }
 
 /**
@@ -491,7 +515,7 @@ void net_event_update(net_event_t *event, const struct timeval *timeout) {
                 event_assign(event->event, __net, s, flag & ~EV_WRITE, call, event);
         }
     }
-    event_add(event->event, timeout);
+    event_add(event->event, event->app->timeout ? &event->app->delay : timeout);
 }
 
 /**
@@ -544,7 +568,7 @@ net_event_t *net_event_find_by_bind(const char *net_name, const char *app_name) 
 static int net_event_cmp(net_event_t *a, net_event_t *b, const int i) {
     switch (i) {
         case 0:
-            return memcmp(&a, &b, sizeof(a));
+            return memcmp(&a, &b, sizeof(struct net_event *));
         case 1:
             return memcmp(&a->id, &b->id, sizeof(a->id));
         case 2: {
@@ -554,7 +578,7 @@ static int net_event_cmp(net_event_t *a, net_event_t *b, const int i) {
             if (cmp == 0)
                 cmp = memcmp(&a->type, &b->type, sizeof(a->type));
             if (cmp == 0 && a->type != NET_TYPE_LISTEN)
-                cmp = memcmp(&a->event, &b->event, sizeof(a->event));
+                cmp = memcmp(&a->event, &b->event, sizeof(struct event *));
             return cmp;
         }
         default:

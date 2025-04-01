@@ -166,7 +166,8 @@ int dns_execute(net_event_t *net) {
     return -1;
 }
 
-mem_t *dns_query(ldns_resolver *r, const int id, const char *a, const ldns_rr_type t, const ldns_rr_class c, const uint16_t f) {
+mem_t *dns_query(ldns_resolver *r, const int id, const char *a, const ldns_rr_type t, const ldns_rr_class c,
+                 const uint16_t f) {
     ldns_pkt *dp = NULL;
     mem_t *mem = NULL;
     if (!a)
@@ -257,6 +258,7 @@ const app_t __g_app_DNS = {
     dns_acquire,
     dns_release,
     dns_execute,
+    NULL,
     NULL,
     {{dns_destroy, dns_compare}},
     {1, 0}
