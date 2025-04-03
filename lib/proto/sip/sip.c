@@ -609,9 +609,6 @@ static int __content__proto(const osip_message_t *m, Sip__Type__Content ***p_con
                             Sip__Type__Sdp **p_sdp, Sip__Type__Vfu **p_vfu, Sip__Type__Dtmf **p_dtmf,
                             Sip__Type__Pidf **p_pidf,
                             Sip__Type__Rl **p_rl) {
-    if (!m)
-        return -1;
-
     osip_list_t content;
     osip_list_init(&content);
 
@@ -689,25 +686,29 @@ static int __content__proto(const osip_message_t *m, Sip__Type__Content ***p_con
         }
     }
 
-    int z = __array__proto(&content, n_content, (void ***) p_content,
-                           (void * (*)(const void *)) &sip__type__content__proto);
+    const int z = __array__proto(&content, n_content, (void ***) p_content,
+                                 (void * (*)(const void *)) &sip__type__content__proto);
 
     osip_list_special_free(&content, NULL);
 
     return z;
 }
 
-Sip__Query *sip__query__proto(const osip_message_t *m, const int id) {
+Sip__Message *sip__message__proto(const osip_message_t *m, const int id) {
     if (!m)
         return NULL;
 
-    Sip__Query *p = malloc(sizeof(Sip__Query));
+    Sip__Message *p = malloc(sizeof(Sip__Message));
     while (p) {
-        sip__query__init(p);
+        sip__message__init(p);
+
         p->id = id;
+        p->response = m->status_code;
+
         p->request = sip__type__uri__proto(m->req_uri);
         if (m->req_uri && !p->request)
             break;
+
         p->head = sip__head__proto(m);
         if (!p->head)
             break;
@@ -718,30 +719,7 @@ Sip__Query *sip__query__proto(const osip_message_t *m, const int id) {
         return p;
     }
     if (p)
-        sip__query__free_unpacked(p, 0);
-    return NULL;
-}
-
-Sip__Answer *sip__answer__proto(const osip_message_t *m, const int id) {
-    if (!m)
-        return NULL;
-
-    Sip__Answer *p = malloc(sizeof(Sip__Answer));
-    while (p) {
-        sip__answer__init(p);
-        p->id = id;
-        p->response = m->status_code;
-        p->head = sip__head__proto(m);
-        if (!p->head)
-            break;
-
-        if (__content__proto(m, &p->content, &p->n_content, &p->sdp, NULL, NULL, NULL, &p->rl))
-            break;
-
-        return p;
-    }
-    if (p)
-        sip__answer__free_unpacked(p, 0);
+        sip__message__free_unpacked(p, 0);
     return NULL;
 }
 
@@ -1119,8 +1097,8 @@ static int __content__unproto(osip_message_t *m, Sip__Type__Content **const p_co
                             (void *(*)(const void *)) &sip__type__content__unproto);
 }
 
-osip_message_t *sip__query__unproto(const Sip__Query *p, const char *method, const unsigned bitset, int *id) {
-    if (!p || p->base.descriptor != &sip__query__descriptor)
+osip_message_t *sip__message__unproto(const Sip__Message *p, const char *method, const unsigned bitset, int *id) {
+    if (!p || p->base.descriptor != &sip__message__descriptor)
         return NULL;
 
     if (id)
@@ -1129,35 +1107,15 @@ osip_message_t *sip__query__unproto(const Sip__Query *p, const char *method, con
     osip_message_t *m = NULL;
     osip_message_init(&m);
 
-    m->sip_method = strdup_null(method);
-    m->req_uri = sip__type__uri__unproto(p->request);
+    if (method) {
+        m->sip_method = strdup_null(method);
+        m->req_uri = sip__type__uri__unproto(p->request);
+    } else {
+        m->status_code = p->response;
+        m->reason_phrase = sip_reason_by_code(m->status_code);
+    }
 
     __content__unproto(m, p->content, p->n_content, p->sdp, p->vfu, p->dtmf, p->pidf, p->rl);
-
-    // FIXME
-    // if (osip_list_size(&m->bodies) > 1) {
-    //     osip_content_length_init(&m->mime_version);
-    //     if (m->mime_version)
-    //         m->mime_version->value = strdup("1.0");
-    // }
-
-    return sip__head__unproto(m, p->head, bitset);
-}
-
-osip_message_t *sip__answer__unproto(const Sip__Answer *p, const unsigned bitset, int *id) {
-    if (!p || p->base.descriptor != &sip__answer__descriptor) // TODO
-        return NULL;
-
-    if (id)
-        *id = p->id;
-
-    osip_message_t *m = NULL;
-    osip_message_init(&m);
-
-    m->status_code = p->response;
-    m->reason_phrase = sip_reason_by_code(m->status_code);
-
-    __content__unproto(m, p->content, p->n_content, p->sdp, NULL, NULL, NULL, p->rl);
 
     // FIXME
     // if (osip_list_size(&m->bodies) > 1) {

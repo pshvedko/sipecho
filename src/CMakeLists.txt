@@ -26,7 +26,7 @@ cmake_compile(
         ini.c
         log.c
         mem.c
-        net.c notify.c
+        net.c # notify.c
         sip.c
         tcp.c # tls.c
         udp.c

@@ -14,7 +14,6 @@
 #include "lib/proto/transport.h"
 
 #include "app.h"
-#include "notify.h"
 #include "log.h"
 
 static net_event_t *__con = NULL;
@@ -155,14 +154,14 @@ static void cmd_maintain_subscribe(Sip_Service *foo, const Sip__Query *query, Si
 /**
  *
  */
-int cmd_finalize(const osip_message_t *m, const Sip__Answer_Closure closure, void *opaque) {
+int cmd_finalize(const osip_message_t *m, const Sip__Message_Closure closure, void *opaque) {
     log_debug("%s: %p %p %p", __PRETTY_FUNCTION__, m, closure, opaque);
 
     if (closure) {
-        Sip__Answer *result = sip__answer__proto(m, 0);
+        Sip__Message *result = sip__message__proto(m, 0);
         if (result) {
             closure(result, opaque);
-            sip__answer__free_unpacked(result, 0);
+            sip__message__free_unpacked(result, 0);
 
             return 0;
         }
@@ -174,7 +173,7 @@ int cmd_finalize(const osip_message_t *m, const Sip__Answer_Closure closure, voi
 /**
  *
  */
-static void cmd_maintain_request(Sip_Service *, const Sip__Query *query, const Sip__Answer_Closure closure,
+static void cmd_maintain_request(Sip_Service *, const Sip__Message *query, const Sip__Message_Closure closure,
                                  void *opaque) {
     if (!query || !query->head || !query->request || !query->head->cseq) {
         closure(NULL, opaque);
@@ -182,7 +181,7 @@ static void cmd_maintain_request(Sip_Service *, const Sip__Query *query, const S
     }
     log_debug("%s: %s %p %p", __PRETTY_FUNCTION__, query->head->cseq->method, closure, opaque);
 
-    osip_message_t *m = sip__query__unproto(query, query->head->cseq->method, FULL_REQUEST_BITSET, NULL);
+    osip_message_t *m = sip__message__unproto(query, query->head->cseq->method, FULL_REQUEST_BITSET, NULL);
     if (!m) {
         closure(NULL, opaque);
         return;
@@ -227,16 +226,16 @@ static int cmd_ready(transport_t *cmd) {
 /**
  *
  */
-static void cmd_finalise_request(const Sip__Answer *result, void *opaque) {
-    int *ret = opaque;
+static void cmd_finalise_request(const Sip__Message *result, void *opaque) {
     if (!result) {
+        int *ret = opaque;
         if (ret)
-            *ret = -1;
+            *ret = -3;
         return;
     }
 
     int id;
-    osip_message_t *m = sip__answer__unproto(result, FULL_RESPONSE_BITSET, &id);
+    osip_message_t *m = sip__message__unproto(result, NULL, FULL_RESPONSE_BITSET, &id);
     if (id && m && m->status_code)
         return sip_finalize(m, id);
 
@@ -254,13 +253,13 @@ int cmd_initiate_registrate(osip_transaction_t *a, osip_message_t *m) {
 
     log_debug("%s: %p %s", __PRETTY_FUNCTION__, m->req_uri, m->sip_version);
 
-    Sip__Query *query = sip__query__proto(m, a->transactionid);
+    Sip__Message *query = sip__message__proto(m, a->transactionid);
     if (!query)
         return -2;
 
     int ret = 0;
     sip__registrate(__con->foo, query, cmd_finalise_registrate, &ret);
-    sip__query__free_unpacked(query, 0);
+    sip__message__free_unpacked(query, 0);
     return ret;
 }
 
@@ -275,13 +274,13 @@ int cmd_initiate_invite(osip_transaction_t *a, osip_message_t *m) {
 
     log_debug("%s: %p %s", __PRETTY_FUNCTION__, m->req_uri, m->sip_version);
 
-    Sip__Query *query = sip__query__proto(m, a->transactionid);
+    Sip__Message *query = sip__message__proto(m, a->transactionid);
     if (!query)
         return -2;
 
     int ret = 0;
     sip__invite(__con->foo, query, cmd_finalise_invite, &ret);
-    sip__query__free_unpacked(query, 0);
+    sip__message__free_unpacked(query, 0);
     return ret;
 }
 
@@ -296,13 +295,13 @@ int cmd_initiate_option(osip_transaction_t *a, osip_message_t *m) {
 
     log_debug("%s: %p %s", __PRETTY_FUNCTION__, m->req_uri, m->sip_version);
 
-    Sip__Query *query = sip__query__proto(m, a->transactionid);
+    Sip__Message *query = sip__message__proto(m, a->transactionid);
     if (!query)
         return -2;
 
     int ret = 0;
     sip__option(__con->foo, query, cmd_finalise_option, &ret);
-    sip__query__free_unpacked(query, 0);
+    sip__message__free_unpacked(query, 0);
     return ret;
 }
 
@@ -317,13 +316,13 @@ int cmd_initiate_cancel(osip_transaction_t *a, osip_message_t *m) {
 
     log_debug("%s: %p %s", __PRETTY_FUNCTION__, m->req_uri, m->sip_version);
 
-    Sip__Query *query = sip__query__proto(m, a->transactionid);
+    Sip__Message *query = sip__message__proto(m, a->transactionid);
     if (!query)
         return -2;
 
     int ret = 0;
     sip__cancel(__con->foo, query, cmd_finalise_cancel, &ret);
-    sip__query__free_unpacked(query, 0);
+    sip__message__free_unpacked(query, 0);
     return ret;
 }
 
@@ -338,13 +337,13 @@ int cmd_initiate_bye(osip_transaction_t *a, osip_message_t *m) {
 
     log_debug("%s: %p %s", __PRETTY_FUNCTION__, m->req_uri, m->sip_version);
 
-    Sip__Query *query = sip__query__proto(m, a->transactionid);
+    Sip__Message *query = sip__message__proto(m, a->transactionid);
     if (!query)
         return -2;
 
     int ret = 0;
     sip__bye(__con->foo, query, cmd_finalise_bye, &ret);
-    sip__query__free_unpacked(query, 0);
+    sip__message__free_unpacked(query, 0);
     return ret;
 }
 
@@ -359,13 +358,13 @@ int cmd_initiate_info(osip_transaction_t *a, osip_message_t *m) {
 
     log_debug("%s: %p %s", __PRETTY_FUNCTION__, m->req_uri, m->sip_version);
 
-    Sip__Query *query = sip__query__proto(m, a->transactionid);
+    Sip__Message *query = sip__message__proto(m, a->transactionid);
     if (!query)
         return -2;
 
     int ret = 0;
     sip__info(__con->foo, query, cmd_finalise_info, &ret);
-    sip__query__free_unpacked(query, 0);
+    sip__message__free_unpacked(query, 0);
     return ret;
 }
 
@@ -380,13 +379,13 @@ int cmd_initiate_subscribe(osip_transaction_t *a, osip_message_t *m) {
 
     log_debug("%s: %p %s", __PRETTY_FUNCTION__, m->req_uri, m->sip_version);
 
-    Sip__Query *query = sip__query__proto(m, a->transactionid);
+    Sip__Message *query = sip__message__proto(m, a->transactionid);
     if (!query)
         return -2;
 
     int ret = 0;
     sip__subscribe(__con->foo, query, cmd_finalise_subscribe, &ret);
-    sip__query__free_unpacked(query, 0);
+    sip__message__free_unpacked(query, 0);
     return ret;
 }
 

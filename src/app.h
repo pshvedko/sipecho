@@ -92,7 +92,7 @@ void sip_finalize(osip_message_t *, int);
 
 void sip_finalize_failure(int);
 
-void sip_proxy(osip_message_t *, Sip__Answer_Closure, void *);
+void sip_proxy(osip_message_t *, Sip__Message_Closure, void *);
 
 /* cmd.c export */
 int cmd_init();
@@ -115,7 +115,7 @@ int cmd_initiate_subscribe(osip_transaction_t *, osip_message_t *);
 
 int cmd_initiate_notify(osip_transaction_t *, osip_message_t *);
 
-int cmd_finalize(const osip_message_t *, Sip__Answer_Closure, void *);
+int cmd_finalize(const osip_message_t *, Sip__Message_Closure, void *);
 
 /* dns.c export */
 int dns_init();

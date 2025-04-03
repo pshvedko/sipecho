@@ -951,7 +951,7 @@ void sip_finalize(osip_message_t *m, const int id) {
 /**
  *
  */
-static int sip_relay(osip_message_t *q, aor_record_t *to, const Sip__Answer_Closure closure, void *opaque) {
+static int sip_relay(osip_message_t *q, aor_record_t *to, const Sip__Message_Closure closure, void *opaque) {
     if (!q || !to || !closure)
         return -1;
 
@@ -1028,7 +1028,7 @@ static int sip_relay(osip_message_t *q, aor_record_t *to, const Sip__Answer_Clos
 /**
  *
  */
-void sip_proxy(osip_message_t *q, const Sip__Answer_Closure closure, void *opaque) {
+void sip_proxy(osip_message_t *q, const Sip__Message_Closure closure, void *opaque) {
     const time_t now = time(0);
 
     log_debug(FL_CYAN "%s: %s" FD_NORMAL, __PRETTY_FUNCTION__, q->sip_method);

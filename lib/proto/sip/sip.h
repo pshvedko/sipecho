@@ -137,9 +137,7 @@ Sip__Type__Sdp__Media *sip__type__sdp__media__proto(const sdp_media_t *);
 
 Sip__Type__Sdp *sip__type__sdp__proto(const sdp_message_t *);
 
-Sip__Query *sip__query__proto(const osip_message_t *, int);
-
-Sip__Answer *sip__answer__proto(const osip_message_t *, int);
+Sip__Message *sip__message__proto(const osip_message_t *, int);
 
 #define sip__type__accept__unproto 					sip__type__content_type__unproto
 #define sip__type__accept_encoding__unproto 		sip__type__encode__unproto
@@ -209,9 +207,7 @@ sdp_media_t *sip__type__sdp__media__unproto(const Sip__Type__Sdp__Media *);
 
 sdp_message_t *sip__type__sdp__unproto(const Sip__Type__Sdp *);
 
-osip_message_t *sip__query__unproto(const Sip__Query *, const char *, unsigned, int *id);
-
-osip_message_t *sip__answer__unproto(const Sip__Answer *, unsigned, int *id);
+osip_message_t *sip__message__unproto(const Sip__Message *, const char *, unsigned, int *id);
 
 enum {
 	SIP__BIT__FROM,
