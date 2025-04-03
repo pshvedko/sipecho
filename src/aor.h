@@ -48,6 +48,8 @@ int aor_init();
 
 void aor_free();
 
+void aor_walk(int (*exe)(aor_t *, void *), void *foo);
+
 aor_t *aor_update(osip_message_t *, time_t, float, long long);
 
 aor_t *aor_find(osip_to_t *);

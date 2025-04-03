@@ -65,6 +65,7 @@
 #define log_close()				closelog()
 
 int logit(int, const char *, ...);
-int hexit(int, const char *, unsigned, int);
+
+int hexit(int, const void *, unsigned, int);
 
 #endif /* LOG_H_ */

@@ -81,7 +81,7 @@ static const struct {
     {500, "Server Internal Error"},
     {501, "Not Implemented"},
     {502, "Bad Gateway"},
-    {503, "transport Unavailable"},
+    {503, "Transport Unavailable"},
     {504, "Server Timeout"},
     {505, "Version Not Supported"},
     {513, "Message Too Large"},
@@ -1097,7 +1097,7 @@ static int __content__unproto(osip_message_t *m, Sip__Type__Content **const p_co
                             (void *(*)(const void *)) &sip__type__content__unproto);
 }
 
-osip_message_t *sip__message__unproto(const Sip__Message *p, const char *method, const unsigned bitset, int *id) {
+osip_message_t *sip__message__unproto(const Sip__Message *p, const unsigned bitset, int *id) {
     if (!p || p->base.descriptor != &sip__message__descriptor)
         return NULL;
 
@@ -1107,12 +1107,15 @@ osip_message_t *sip__message__unproto(const Sip__Message *p, const char *method,
     osip_message_t *m = NULL;
     osip_message_init(&m);
 
-    if (method) {
-        m->sip_method = strdup_null(method);
-        m->req_uri = sip__type__uri__unproto(p->request);
-    } else {
+    if (p->response) {
         m->status_code = p->response;
         m->reason_phrase = sip_reason_by_code(m->status_code);
+    } else if (p->request && p->head && p->head->cseq && p->head->cseq->method) {
+        m->req_uri = sip__type__uri__unproto(p->request);
+        m->sip_method = strdup(p->head->cseq->method);
+    } else {
+        osip_message_free(m);
+        return NULL;
     }
 
     __content__unproto(m, p->content, p->n_content, p->sdp, p->vfu, p->dtmf, p->pidf, p->rl);

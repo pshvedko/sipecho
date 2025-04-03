@@ -22,20 +22,20 @@ static struct map *__aor; /**< Address Of Record, map of @aor_t */
  *
  */
 static int contact_compare(osip_from_t *a, osip_to_t *b) {
-
 	int cmp = strcasecmp(a->url->scheme, b->url->scheme);
 	if (cmp == 0)
 		cmp = strcasecmp(a->url->host, b->url->host);
 	if (cmp == 0)
 		cmp = net_port(a->url) - net_port(b->url);
 	if (cmp == 0)
-		if (strcmp(a->url->username ? a->url->username: "", "*") !=0 && strcmp(b->url->username ? b->url->username: "", "*")!=0)
-			cmp = strcasecmp(a->url->username ? a->url->username: "", b->url->username ? b->url->username: "");
+		if (strcmp(a->url->username ? a->url->username : "", "*") != 0 && strcmp(
+			    b->url->username ? b->url->username : "", "*") != 0)
+			cmp = strcasecmp(a->url->username ? a->url->username : "", b->url->username ? b->url->username : "");
 
-//	log_alert("%s: [%s:%s@%s:%s] = [%s:%s@%s:%s] = %i", //
-//			__PRETTY_FUNCTION__,//
-//			a->url->scheme, a->url->username, a->url->host, a->url->port,//
-//			b->url->scheme, b->url->username, b->url->host, b->url->port, cmp);
+	//	log_alert("%s: [%s:%s@%s:%s] = [%s:%s@%s:%s] = %i", //
+	//			__PRETTY_FUNCTION__,//
+	//			a->url->scheme, a->url->username, a->url->host, a->url->port,//
+	//			b->url->scheme, b->url->username, b->url->host, b->url->port, cmp);
 
 	return cmp;
 }
@@ -44,7 +44,6 @@ static int contact_compare(osip_from_t *a, osip_to_t *b) {
  *
  */
 static void aor_record_delete(aor_record_t *record) {
-
 	if (record) {
 		osip_contact_free(record->contact);
 		osip_uri_free(record->route);
@@ -56,7 +55,6 @@ static void aor_record_delete(aor_record_t *record) {
  *
  */
 static int aor_record_cmp(aor_record_t *a, aor_record_t *b, int i) {
-
 	int cmp = strcmp(a->protocol, b->protocol);
 	if (cmp == 0)
 		cmp = contact_compare(a->contact, b->contact);
@@ -67,7 +65,6 @@ static int aor_record_cmp(aor_record_t *a, aor_record_t *b, int i) {
  *
  */
 static void aor_delete(aor_t *aor) {
-
 	if (aor) {
 		osip_from_free(aor->name);
 		map_clean(&aor->contact);
@@ -79,7 +76,6 @@ static void aor_delete(aor_t *aor) {
  *
  */
 static int aor_cmp(const aor_t *a, const aor_t *b, int i) {
-
 	return contact_compare(a->name, b->name);
 }
 
@@ -87,8 +83,7 @@ static int aor_cmp(const aor_t *a, const aor_t *b, int i) {
  *
  */
 int aor_init() {
-
-	__aor = map_new((map_del_t) &aor_delete, (map_cmp_t) &aor_cmp, NULL );
+	__aor = map_new((map_del_t) &aor_delete, (map_cmp_t) &aor_cmp, NULL);
 	if (!__aor)
 		return -1;
 
@@ -99,21 +94,39 @@ int aor_init() {
  *
  */
 void aor_free() {
-
 	map_free(__aor);
+}
+
+struct internal_walk {
+	int (*exe)(aor_t *, void *);
+
+	void *foo;
+};
+
+static int aor_internal_walk(const void *node, void *foo) {
+	const map_node_t *node1 = node;
+	const struct internal_walk *w = foo;
+	return w->exe(node1->item, w->foo);
+}
+
+/**
+ *
+ */
+void aor_walk(int (*exe)(aor_t *, void *), void *foo) {
+	struct internal_walk woo = {exe, foo};
+	map_walk(__aor, 0, aor_internal_walk, &woo);
 }
 
 /**
  *
  */
 static void aor_record_lookup_callback(void *foo, const char *address) {
-
 	aor_t *key = foo;
 	if (!foo)
 		return;
 
 	log_debug(FL_MAGENTA "%s: %s[%s]" FD_NORMAL,
-			__PRETTY_FUNCTION__, key->preferred->contact->url->host, address);
+	          __PRETTY_FUNCTION__, key->preferred->contact->url->host, address);
 
 	if (address) {
 		aor_t *aor = map_find(__aor, key, 0);
@@ -131,14 +144,12 @@ static void aor_record_lookup_callback(void *foo, const char *address) {
 	osip_from_free(key->name);
 	free(key->preferred);
 	free(key);
-
 }
 
 /*
  *
  */
 static void aor_record_lookup(aor_record_t *record, aor_t *aor) {
-
 	if (!aor || !record)
 		return;
 	else if (dns_is_resolved(record->contact->url->host)) {
@@ -165,13 +176,12 @@ static void aor_record_lookup(aor_record_t *record, aor_t *aor) {
 /**
  *
  */
-static aor_record_t * aor_record_new(osip_contact_t *contact, time_t expired, float q, long long id) {
+static aor_record_t *aor_record_new(osip_contact_t *contact, time_t expired, float q, long long id) {
+	if (!contact->url || !contact->url->scheme /* || !contact->url->username */ || !contact->url->host)
+		return NULL;
 
-	if (!contact->url || !contact->url->scheme /* || !contact->url->username */|| !contact->url->host)
-		return NULL ;
-
-	if (0 == strcmp(contact->url->username ? contact->url->username: "", "*"))
-		return NULL ;
+	if (0 == strcmp(contact->url->username ? contact->url->username : "", "*"))
+		return NULL;
 
 	osip_uri_param_t *expires = NULL;
 	osip_uri_param_get_byname(&contact->gen_params, "expires", &expires);
@@ -180,7 +190,7 @@ static aor_record_t * aor_record_new(osip_contact_t *contact, time_t expired, fl
 			expired = atoi(expires->gvalue);
 
 	if (expired == 0)
-		return NULL ;
+		return NULL;
 
 	osip_uri_param_t *weight = NULL;
 	osip_uri_param_get_byname(&contact->gen_params, "q", &weight);
@@ -192,13 +202,13 @@ static aor_record_t * aor_record_new(osip_contact_t *contact, time_t expired, fl
 		int n = osip_contact_clone(contact, &record->contact);
 		if (n) {
 			aor_record_delete(record);
-			return NULL ;
+			return NULL;
 		}
 		osip_uri_param_t *transport = NULL;
 		osip_uri_param_get_byname(&record->contact->url->url_params, "transport", &transport);
 		if (!transport) {
 			aor_record_delete(record);
-			return NULL ;
+			return NULL;
 		}
 		record->protocol = transport->gvalue;
 		record->expired = expired + time(0);
@@ -211,10 +221,9 @@ static aor_record_t * aor_record_new(osip_contact_t *contact, time_t expired, fl
 /**
  *
  */
-static aor_t * aor_new(osip_from_t *to, osip_list_t *contacts, time_t expired, float q, long long id) {
-
+static aor_t *aor_new(osip_from_t *to, osip_list_t *contacts, time_t expired, float q, long long id) {
 	if (!to->url || !to->url->scheme || !to->url->username || !to->url->host)
-		return NULL ;
+		return NULL;
 
 	aor_t *aor = calloc(1, sizeof(aor_t));
 	if (aor) {
@@ -223,7 +232,7 @@ static aor_t * aor_new(osip_from_t *to, osip_list_t *contacts, time_t expired, f
 
 		if (osip_from_clone(to, &aor->name)) {
 			aor_delete(aor);
-			return NULL ;
+			return NULL;
 		}
 		int n = contacts ? osip_list_size(contacts) : 0;
 		while (n--) {
@@ -244,12 +253,11 @@ static aor_t * aor_new(osip_from_t *to, osip_list_t *contacts, time_t expired, f
 /**
  *
  */
-aor_t * aor_find(osip_to_t *name) {
-
+aor_t *aor_find(osip_to_t *name) {
 	if (!name || !name->url || !name->url->scheme || !name->url->username || !name->url->host)
-		return NULL ;
+		return NULL;
 
-	aor_t key[1] = { { .name=name} };
+	aor_t key[1] = {{.name = name}};
 
 	return map_find(__aor, key, 0);
 }
@@ -258,10 +266,9 @@ aor_t * aor_find(osip_to_t *name) {
  * XXX: +sip.instance="<urn:uuid:bfbc8ed0-c51e-4c51-aa62-bd1c5856e4d9>" for replace contact
  *
  */
-aor_t * aor_update(osip_message_t *m, time_t expired, const float q, const long long id) {
-
+aor_t *aor_update(osip_message_t *m, time_t expired, const float q, const long long id) {
 	if (!m->from || !m->from->url || !m->from->url->scheme || !m->from->url->username || !m->from->url->host)
-		return NULL ;
+		return NULL;
 
 	osip_header_t *expires = NULL;
 	if (expired != -1)
@@ -270,10 +277,10 @@ aor_t * aor_update(osip_message_t *m, time_t expired, const float q, const long 
 				if (expires->hvalue)
 					expired = atoi(expires->hvalue);
 
-	aor_t key[1] = { { .name= m->from } }, *aor = map_find(__aor, key, 0);
+	aor_t key[1] = {{.name = m->from}}, *aor = map_find(__aor, key, 0);
 	if (aor) {
 		if (0 == strcmp(aor->name->url->username, "*"))
-			return NULL ;
+			return NULL;
 
 		int n = osip_list_size(&m->contacts);
 		while (n--) {
@@ -288,7 +295,7 @@ aor_t * aor_update(osip_message_t *m, time_t expired, const float q, const long 
 				if (!transport) {
 					continue;
 				}
-				aor_record_t del[1] = { { .protocol= transport->gvalue, .contact= next }, }, *add =
+				aor_record_t del[1] = {{.protocol = transport->gvalue, .contact = next},}, *add =
 						aor_record_new(next, expired, q, id);
 				if (expired != -1)
 					map_pure(&aor->contact, del, 0);
@@ -307,7 +314,7 @@ aor_t * aor_update(osip_message_t *m, time_t expired, const float q, const long 
 	aor = aor_new(m->from, &m->contacts, expired, q, id);
 	if (map_push(__aor, aor)) {
 		aor_delete(aor);
-		return NULL ;
+		return NULL;
 	}
 	return aor;
 }
@@ -315,8 +322,7 @@ aor_t * aor_update(osip_message_t *m, time_t expired, const float q, const long 
 /**
  *
  */
-aor_t * aor_push(const char *name, const char *route) {
-
+aor_t *aor_push(const char *name, const char *route) {
 	osip_from_t *from = NULL;
 	osip_from_init(&from);
 	osip_from_parse(from, name);
@@ -330,13 +336,13 @@ aor_t * aor_push(const char *name, const char *route) {
 	osip_list_add(&contacts, contact, 0);
 
 	aor_t *aor = aor_new(from, &contacts, 3600 * 24 * 365, 1., 0);
-	osip_list_special_free(&contacts, NULL );
+	osip_list_special_free(&contacts, NULL);
 	osip_contact_free(contact);
 	osip_from_free(from);
-	if (aor != NULL ) {
+	if (aor != NULL) {
 		if (map_size(&aor->contact) == 0 || map_push(__aor, aor) != 0) {
 			aor_delete(aor);
-			return NULL ;
+			return NULL;
 		}
 	}
 	return aor;

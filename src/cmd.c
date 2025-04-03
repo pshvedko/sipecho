@@ -20,130 +20,8 @@ static net_event_t *__con = NULL;
 
 static char hostname[];
 
-#define XXX
-#ifndef XXX
-
-/**
- * XXX
- */
-static int cmd_status_notify(const Sip__Type__Address *who, void *foo) {
-
-    if (!who || !who->url)
-        return 0;
-    if (!who->url->scheme || !who->url->username || !who->url->host)
-        return 0;
-
-    char name[512];
-
-    snprintf(name, sizeof(name), "%s:%s@%s", who->url->scheme, who->url->username, who->url->host);
-
-    return sip_get_online(name);
-}
-
-/**
- * XXX
- */
-static void cmd_closed_notify(const Sip__Answer *result, void *opaque) {
-
-    if (!result)
-        return;
-
-    log_debug("%s: %i %p", __PRETTY_FUNCTION__, result->response, opaque);
-}
-
-/**
- * XXX
- */
-static void cmd_submit_notify(const Sip__Query *notice, void *foo) {
-
-    sip__notify(foo, notice, &cmd_closed_notify, 0);
-}
-
-/**
- * XXX
- */
-static void cmd_maintain_registrate(Sip_Service *foo, const Sip__Query *query, Sip__Answer_Closure closure,
-        void *opaque) {
-
-    if (!query || !query->head || !query->request) {
-
-        closure(NULL, opaque);
-        return;
-    }
-    log_debug("%s: %p %s", __PRETTY_FUNCTION__, query->request, query->head->version);
-
-    Sip__Answer result[1];
-
-    sip__answer__init(result);
-
-    result->head = query->head;
-    result->response = SIP_OK;
-
-    closure(result, opaque);
-
-    int n = query->head->n_other;
-    while (n--) {
-        if (strcasecmp("Expires", query->head->other[n]->name ?query->head->other[n]->name: "") == 0) {
-            if (strcmp("0", query->head->other[n]->value ? query->head->other[n]->value: "") != 0) {
-                notify_change(__notify, query->head->to, 1, &cmd_submit_notify, foo);
-                return;
-            }
-        }
-    }
-    int j = query->head->n_contact;
-    while (j--)
-        notify_delete(__notify, query->head->from, query->head->contact[j], NULL );
-    notify_delete(__notify, query->head->from, NULL, NULL );
-    notify_change(__notify, query->head->to, 0, &cmd_submit_notify, foo);
-    return;
-}
-
-/**
- * XXX
- */
-static void cmd_maintain_subscribe(Sip_Service *foo, const Sip__Query *query, Sip__Answer_Closure closure,
-        void *opaque) {
-
-    if (!query || !query->head || !query->request) {
-
-        closure(NULL, opaque);
-        return;
-    }
-    log_debug("%s: %p %s", __PRETTY_FUNCTION__, query->request, query->head->version);
-
-    Sip__Answer result[] = { SIP__ANSWER__INIT };
-    Sip__Head head[] = { SIP__HEAD__INIT };
-
-    result->response = SIP_OK;
-    result->head = head;
-    result->head->version = query->head->version;
-    result->head->via = query->head->via;
-    result->head->n_via = query->head->n_via;
-    result->head->from = query->head->from;
-    result->head->to = query->head->to;
-    result->head->call_id = query->head->call_id;
-    result->head->cseq = query->head->cseq;
-    result->head->record_route = query->head->record_route;
-    result->head->n_record_route = query->head->n_record_route;
-
-    closure(result, opaque);
-
-    int n = query->head->n_other;
-    while (n--) {
-        if (!strcasecmp("Event", query->head->other[n]->name ? : "")) {
-            if (!strcmp("presence", query->head->other[n]->value ? : "")) {
-                notify_update(__notify, query->head->from, query->head->contact[0], query->head->to,
-                        query->head->call_id, -1, &cmd_submit_notify, foo);
-            }
-            break;
-        }
-    }
-}
-
-#else
-#define cmd_maintain_registrate NULL
-#define cmd_maintain_subscribe  NULL
-#endif
+#define cmd_maintain_registrate cmd_maintain_request
+#define cmd_maintain_subscribe  cmd_maintain_request
 #define cmd_maintain_invite     cmd_maintain_request
 #define cmd_maintain_option     cmd_maintain_request
 #define cmd_maintain_cancel     cmd_maintain_request
@@ -162,7 +40,6 @@ int cmd_finalize(const osip_message_t *m, const Sip__Message_Closure closure, vo
         if (result) {
             closure(result, opaque);
             sip__message__free_unpacked(result, 0);
-
             return 0;
         }
         closure(NULL, opaque);
@@ -173,15 +50,42 @@ int cmd_finalize(const osip_message_t *m, const Sip__Message_Closure closure, vo
 /**
  *
  */
+static void cmd_finalise_request(const Sip__Message *reply, void *opaque) {
+    if (!reply) {
+        int *ret = opaque;
+        if (ret)
+            *ret = -1;
+        return;
+    }
+
+    log_debug("%s: %p %p", __PRETTY_FUNCTION__, reply, opaque);
+
+    int id = 0;
+    osip_message_t *m = sip__message__unproto(reply, FULL_RESPONSE_BITSET, &id);
+    if (id && m && m->status_code)
+        sip_finalize(m, id);
+    else if (id)
+        sip_finalize_failure(id);
+}
+
+/**
+ *
+ */
 static void cmd_maintain_request(Sip_Service *, const Sip__Message *query, const Sip__Message_Closure closure,
                                  void *opaque) {
-    if (!query || !query->head || !query->request || !query->head->cseq) {
+    if (query && query->response) {
+        cmd_finalise_request(query, NULL);
+        return;
+    }
+
+    if (!query || !query->head || !query->request || !query->head->cseq || !query->head->cseq->method) {
         closure(NULL, opaque);
         return;
     }
+
     log_debug("%s: %s %p %p", __PRETTY_FUNCTION__, query->head->cseq->method, closure, opaque);
 
-    osip_message_t *m = sip__message__unproto(query, query->head->cseq->method, FULL_REQUEST_BITSET, NULL);
+    osip_message_t *m = sip__message__unproto(query, FULL_REQUEST_BITSET, NULL);
     if (!m) {
         closure(NULL, opaque);
         return;
@@ -221,25 +125,6 @@ static int cmd_ready(transport_t *cmd) {
     if (cmd && cmd->ready)
         return 1;
     return 0;
-}
-
-/**
- *
- */
-static void cmd_finalise_request(const Sip__Message *result, void *opaque) {
-    if (!result) {
-        int *ret = opaque;
-        if (ret)
-            *ret = -3;
-        return;
-    }
-
-    int id;
-    osip_message_t *m = sip__message__unproto(result, NULL, FULL_RESPONSE_BITSET, &id);
-    if (id && m && m->status_code)
-        return sip_finalize(m, id);
-
-    sip_finalize_failure(id);
 }
 
 /**
@@ -416,6 +301,8 @@ static int cmd_relay(void *foo, char *buf, const unsigned short len) {
     log_debug("%s: %i/%s/%s",
               __PRETTY_FUNCTION__, net->event->ev_fd, net->net->name, net->app->name);
 
+    // log_dump(buf, len);
+
     mem_t *mem = mem_new(buf, len, 0, 0);
     if (!mem)
         return -1;
@@ -433,8 +320,7 @@ static int cmd_relay(void *foo, char *buf, const unsigned short len) {
  */
 static void *cmd_new(net_event_t *net) {
     Sip_Service sip = SIP__INIT(cmd_maintain_);
-    sip__init(&sip, NULL);
-    return transport_new(&sip.base, "front", net->argv[0], net->argv[1],
+    return transport_new(&sip.base, net->argv[0], net->argv[1], net->argv[2],
                          hostname, MQTT_CONNECT_CLEAN_SESSION, 60,
                          cmd_error, cmd_relay, net);
 }
@@ -467,6 +353,8 @@ static int cmd_execute(net_event_t *net) {
               net->incoming->done,
               net->incoming->end);
 
+    // log_dump(net->incoming->begin + net->incoming->buffer, net->incoming->end - net->incoming->begin);
+
     if (net->foo) {
         const int len = cmd_command(net->foo,
                                     net->incoming->begin + net->incoming->buffer,
@@ -487,7 +375,8 @@ static int cmd_execute(net_event_t *net) {
 static int cmd_open(net_event_t *net) {
     if (net->foo)
         cmd_destroy(net->foo);
-    return net_open(&__g_net_TCP, &__g_app_CMD, net->peer->host, net->peer->port, net->argv[0], net->argv[1]);
+    return net_open(&__g_net_TCP, &__g_app_CMD, net->peer->host, net->peer->port,
+                    net->argv[0], net->argv[1], net->argv[2]);
 }
 
 /**
@@ -534,18 +423,20 @@ int cmd_init() { return 0; }
  * @return 
  */
 static int cmd_connect(net_event_t *net, const va_list ap) {
-    net->argv = calloc(2, sizeof(const char *));
+    net->argv = calloc(3, sizeof(const char *));
     if (!net->argv)
         return -1;
     net->argv[0] = va_arg(ap, const char*);
     net->argv[1] = va_arg(ap, const char*);
+    net->argv[2] = va_arg(ap, const char*);
     return 0;
 }
 
 /**
  *
  */
-void cmd_free() { ; }
+void cmd_free() {
+}
 
 static char hostname[256] = "FIXME";
 

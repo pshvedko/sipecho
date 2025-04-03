@@ -900,20 +900,9 @@ void sip_finalize_failure(const int id) {
 }
 
 /**
- *
- * @code
- *      osip_message_t *m = sip_callback_switch(type, a, q);
- *      while (m) {
- *          osip_message_t *n = osip_message_get_application_data(m);
- *          osip_event_t *e = osip_new_outgoing_sipmessage(m);
- *          if (e)
- *              osip_transaction_add_event(a, e);
- *          else
- *              osip_message_free(m);
- *
- *          m = n;
- *      }
- * @endcode
+ * 
+ * @param m
+ * @param id 
  */
 void sip_finalize(osip_message_t *m, const int id) {
     if (!__sip)
@@ -921,12 +910,8 @@ void sip_finalize(osip_message_t *m, const int id) {
 
     osip_event_t *e = __osip_event_new_id(m, id);
     if (e) {
-        log_alert("%: !!! EVENT");
-
-        osip_transaction_t *a = __osip_find_transaction(__sip, e, 1);
+        osip_transaction_t *a = __osip_find_transaction(__sip, e, 0);
         if (a) {
-            log_alert("%: !!! FOUND %i %i", a->transactionid, id);
-
             net_event_t *n = osip_transaction_get_event(a);
             if (n) {
                 if (MSG_IS_RESPONSE_FOR(m, SIP_METHOD_REGISTER))
@@ -940,11 +925,8 @@ void sip_finalize(osip_message_t *m, const int id) {
                 return net_event_update(n, NULL);
             }
         }
-        log_alert("%: !!! NOT FOUND %i", id);
-
         return osip_event_free(e);
     }
-
     return osip_message_free(m);
 }
 
@@ -1415,6 +1397,8 @@ static void sip_transaction_fail(int type, osip_transaction_t *a, const int e) {
  *
  */
 int sip_init() {
+    osip_trace_initialize(0,NULL);
+
     if (osip_init(&__sip))
         return -1;
 

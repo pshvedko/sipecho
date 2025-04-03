@@ -207,7 +207,7 @@ sdp_media_t *sip__type__sdp__media__unproto(const Sip__Type__Sdp__Media *);
 
 sdp_message_t *sip__type__sdp__unproto(const Sip__Type__Sdp *);
 
-osip_message_t *sip__message__unproto(const Sip__Message *, const char *, unsigned, int *id);
+osip_message_t *sip__message__unproto(const Sip__Message *, unsigned, int *id);
 
 enum {
 	SIP__BIT__FROM,

@@ -35,7 +35,7 @@ message head {
 message message {
 	required int32 id = 1;
 	required int32 response = 2;
-	required sip.type.uri request = 3;
+	optional sip.type.uri request = 3;
 	required head head = 4;
 	repeated sip.type.content content = 5;
 	optional sip.type.sdp sdp = 6;

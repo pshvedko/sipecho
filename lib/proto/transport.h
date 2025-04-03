@@ -14,9 +14,6 @@
 typedef struct transport {
     ProtobufCService base[1];
 
-    void (*invoke)(ProtobufCService *, unsigned, const ProtobufCMessage *, void (*)(const ProtobufCMessage *, void *),
-                   void *);
-
     int (*error)(void *, long, const char *);
 
     int (*relay)(void *, char *, unsigned short);
@@ -47,8 +44,7 @@ typedef struct transport {
     long ready;
     void *foo;
 
-    void (*methods[])();
-
+    void (*methods[])(ProtobufCService *, const ProtobufCMessage *, void (*)(const ProtobufCMessage *, void *), void *);
 } transport_t;
 
 transport_t *transport_new(ProtobufCService *,

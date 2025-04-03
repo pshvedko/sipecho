@@ -6,13 +6,9 @@
 #include <time.h>
 #include <unistd.h>
 
-#include <lib/proto/sip/message.pb-c.h>
+#include "message_print.h"
 
 #include "transport.h"
-
-#include <lib/proto/sip/service.pb-c.h>
-
-#include "message_print.h"
 
 #define ERROR(t, err)       t->error(t->foo, err, mqtt_error_str(err))
 #define RELAY(t, buf, len)  t->relay(t->foo, buf, len)
@@ -53,7 +49,7 @@ static void invoke(ProtobufCService *service, const unsigned int index,
                    const ProtobufCMessage *input,
                    const ProtobufCClosure closure, void *opaque) {
     struct transport *t = (transport_t *) service;
-    unsigned char message[4096]; // TODO protobuf_c_message_pack_to_buffer(input, buf);
+    unsigned char message[4096];
     const size_t size = protobuf_c_message_pack(input, message);
     if (size > 0) {
         void *buf = malloc(256 + size);
@@ -61,11 +57,10 @@ static void invoke(ProtobufCService *service, const unsigned int index,
             const ProtobufCServiceDescriptor *d = t->base->descriptor;
             const ProtobufCMethodDescriptor *m = d->methods;
             char topic[128];
-            sprintf(topic, "Q/Route/%s/%s/%hu", m[index].name, t->host, t->port);
+            sprintf(topic, "%s/%s/%s/%hu", t->to, m[index].name, t->host, t->port);
             const ssize_t len = mqtt_pack_publish_request(buf, 256 + size, topic,
                                                           packet_id(t), message, size, 0);
             if (len > 0) {
-                dprintf(STDERR_FILENO, "%s: len=%zi\n", __func__, len);
                 if (!RELAY(t, buf, len))
                     return;
             } else if (len < 0)
@@ -77,8 +72,7 @@ static void invoke(ProtobufCService *service, const unsigned int index,
 }
 
 struct topic {
-    const char *type;
-    const char *scope;
+    const char *name;
     const char *method;
     const char *host;
     const char *port;
@@ -93,19 +87,13 @@ struct topic {
  */
 static struct topic get_topic(const char *name, uint16_t size) {
     struct topic topic = {};
-    char *scope = memchr(name, '/', size);
-    if (!scope)
-        return topic;
-    *scope = '\0';
-    scope++;
-    size -= scope - name;
 
-    char *method = memchr(scope, '/', size);
+    char *method = memchr(name, '/', size);
     if (!method)
         return topic;
     *method = '\0';
     method++;
-    size -= method - scope;
+    size -= method - name;
 
     char *host = memchr(method, '/', size);
     if (!host)
@@ -121,8 +109,7 @@ static struct topic get_topic(const char *name, uint16_t size) {
     port++;
     size -= port - host;
 
-    topic.type = name;
-    topic.scope = scope;
+    topic.name = name;
     topic.method = method;
     topic.host = host;
     topic.port = port;
@@ -131,11 +118,6 @@ static struct topic get_topic(const char *name, uint16_t size) {
     return topic;
 }
 
-struct method {
-    char type;
-    unsigned index;
-};
-
 /**
  * 
  * @param t
@@ -143,25 +125,25 @@ struct method {
  * @param size 
  * @return 
  */
-struct method get_method(transport_t *t, const void *name, const uint16_t size) {
-    struct method method = {};
+static unsigned get_method(transport_t *t, const void *name, const uint16_t size) {
     const struct topic topic = get_topic(name, size);
-
-    if (topic.type != NULL) {
-        method.type = topic.type[0];
-    }
-
     if (topic.method != NULL) {
         unsigned i = t->base->descriptor->n_methods;
         while (i--) {
             if (strcmp(topic.method, t->base->descriptor->methods[i].name) == 0) {
-                method.index = i;
-                break;
+                return i + 1;
             }
         }
     }
+    return 0;
+}
 
-    return method;
+/**
+ * 
+ * @param message 
+ * @param opaque 
+ */
+static void input_callback(const ProtobufCMessage *message, void *opaque) {
 }
 
 /**
@@ -171,28 +153,15 @@ struct method get_method(transport_t *t, const void *name, const uint16_t size) 
  * @param opaque
  */
 static void input(transport_t *t, const struct mqtt_response_publish input, void *opaque) {
-    const struct method method = get_method(t, input.topic_name, input.topic_name_size);
-    switch (method.type) {
-        case 'Q':
-            break;
-        case 'A': {
-            ProtobufCMessage *result;
-            switch (method.index) {
-                case 0:
-                    result = protobuf_c_message_unpack(t->base->descriptor->methods[method.index].output, NULL,
-                                                       input.application_message_size,
-                                                       input.application_message);
-                    break;
-                default:
-                    return;
-            }
-
-            protobuf_c_message_free_unpacked(result, NULL);
-        }
-        break;
-        default:
-            return;
-    }
+    unsigned i = get_method(t, input.topic_name, input.topic_name_size);
+    if (!i)
+        return;
+    ProtobufCMessage *message = protobuf_c_message_unpack(t->base->descriptor->methods[--i].output, NULL,
+                                                          input.application_message_size,
+                                                          input.application_message);
+    if (message)
+        t->methods[i](t->base, message, input_callback, NULL);
+    protobuf_c_message_free_unpacked(message, NULL);
 }
 
 /**
@@ -294,7 +263,7 @@ static int subscribe(transport_t *t, void *opaque) {
     unsigned i = d->n_methods;
     while (i--) {
         char topic[256];
-        long len = snprintf(topic, 256, "+/%s/%s/%s/%hu", d->name, m[i].name, t->host, t->port);
+        long len = snprintf(topic, 256, "%s/%s/%s/%hu", d->name, m[i].name, t->host, t->port);
         if (len < 0 || len >= 256)
             return ERROR(t, MQTT_ERROR_SUBSCRIBE_FAILED);
         void *buf = malloc(512);
@@ -408,7 +377,6 @@ transport_t *transport_new(ProtobufCService *service,
     if (!t)
         return NULL;
 
-    t->invoke = service->invoke;
     t->error = error;
     t->relay = relay;
     t->flags = flags;

@@ -20,12 +20,13 @@ static const char __hex[] = "0123456789ABCDEF .";
 /**
  *
  */
-int hexit(const int pri, const char *bin, const unsigned l, const int n) {
+int hexit(const int pri, const void *in, const unsigned l, const int n) {
     char hex[n * 4 + n / 4];
 
     int i = 0;
     int j = 0;
 
+    const unsigned char *bin = in;
     while (i < l) {
         hex[j++] = __hex[(bin[i] >> 4)];
         hex[j++] = __hex[(bin[i] & 15)];

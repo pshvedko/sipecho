@@ -177,7 +177,7 @@ int main(const int argc, char **argv) {
     if (b == 0)
         b = net_bind(&__g_net_TCP, &__g_app_CMD);
     if (b == 0)
-        b = net_open(&__g_net_TCP, &__g_app_CMD, "192.168.0.244", 1883, NULL, NULL);
+        b = net_open(&__g_net_TCP, &__g_app_CMD, "192.168.0.244", 1883, "Route", NULL, NULL);
     if (b)
         return -1;
 

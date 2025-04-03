@@ -20,11 +20,12 @@
 
 #include <stdbool.h>
 
+#include "aor.h"
 #include "app.h"
 
 static struct event_base *__net = NULL;
 
-static struct event __sig_INT, __sig_TERM, __sig_USR1, __sig_USR2;
+static struct event __sig_INT, __sig_TERM, __sig_USR1, __sig_USR2, __sig_HUP, __sig_TRAP;
 
 static struct map *__event = NULL;
 
@@ -448,13 +449,7 @@ int net_open(const net_t *net, const app_t *app, const char *host, const unsigne
         log_fatal("%s: %s/%s/%s:%hu failed: %m", __PRETTY_FUNCTION__, net->name, app->name, host, port);
         return -1;
     }
-    //  int err = 0;
-    // if (app->connect)
-    //     err = app->connect(event, args);
-    //    if (!err)
     return event_add(event->event, event->app->timeout ? &event->app->delay : NULL);
-    // net_event_close(event);
-    // return err;
 }
 
 /**
@@ -520,6 +515,36 @@ void net_event_update(net_event_t *event, const struct timeval *timeout) {
 
 /**
  *
+ * @param aor
+ * @param foo
+ * @return
+ */
+static int aor_record_print(aor_t *aor, void *foo) {
+    char *name;
+    osip_from_to_str(aor->name, &name);
+
+    log_info("%s", name);
+
+    map_iter_t *iter = map_iter_begin(&aor->contact);
+    while (*iter) {
+        const aor_record_t *record = map_iter_down(&aor->contact, &iter);
+        char *contact;
+        osip_contact_to_str(record->contact, &contact);
+        char *route;
+        osip_uri_to_str(record->route, &route);
+
+        log_info("\t%s [%s]", contact, route);
+
+        osip_free(route);
+        osip_free(contact);
+    }
+
+    osip_free(name);
+    return 0;
+}
+
+/**
+ *
  */
 static void net_callback_signal(const int s, short flag, void *arg) {
     log_alert("%s: %i", __PRETTY_FUNCTION__, s);
@@ -534,6 +559,10 @@ static void net_callback_signal(const int s, short flag, void *arg) {
         case SIGINT:
         case SIGTERM:
             event_base_loopbreak(__net);
+            break;
+        case SIGHUP:
+        case SIGTRAP:
+            aor_walk(aor_record_print, NULL);
             break;
         default:
             break;
@@ -621,6 +650,11 @@ int net_init() {
     evsignal_assign(&__sig_USR2, __net, SIGUSR2, net_callback_signal, NULL);
     evsignal_add(&__sig_USR2, NULL);
 
+    evsignal_assign(&__sig_HUP, __net, SIGHUP, net_callback_signal, NULL);
+    evsignal_add(&__sig_HUP, NULL);
+    evsignal_assign(&__sig_TRAP, __net, SIGTRAP, net_callback_signal, NULL);
+    evsignal_add(&__sig_TRAP, NULL);
+
     return 0;
 }
 
@@ -632,6 +666,8 @@ void net_free() {
     evsignal_del(&__sig_TERM);
     evsignal_del(&__sig_USR1);
     evsignal_del(&__sig_USR2);
+    evsignal_del(&__sig_HUP);
+    evsignal_del(&__sig_TRAP);
 
     map_free(__event);
 

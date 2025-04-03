@@ -22,43 +22,35 @@ func main() {
 	token := client.Connect()
 	token.Wait()
 
-	token = client.Subscribe("+/Route/#", 0, func(client mqtt.Client, message mqtt.Message) {
+	token = client.Subscribe("Route/#", 0, func(client mqtt.Client, message mqtt.Message) {
 		messages <- message
 	})
 	token.Wait()
 
 	for m := range messages {
-		var bytes []byte
 		topic := strings.Split(m.Topic(), "/")
-		switch topic[0] {
-		case "Q":
-			var query sip.Query
-			err := proto.Unmarshal(m.Payload(), &query)
-			if err != nil {
-				log.Fatalln(err)
-			}
 
-			log.Println(topic, &query)
-
-			var answer sip.Answer
-			answer.Response = NewResponse(503)
-			answer.Head = query.Head
-			answer.Id = query.Id
-
-			bytes, err = proto.Marshal(&answer)
-			if err != nil {
-				log.Fatalln(err)
-			}
-
-			topic[0] = "A"
-
-		default:
-			continue
+		var query sip.Message
+		err := proto.Unmarshal(m.Payload(), &query)
+		if err != nil {
+			log.Fatalln(err)
 		}
 
-		topic[1] = "Sip"
+		log.Println(">>>", topic, &query)
 
-		log.Println(topic, bytes)
+		var reply sip.Message
+		reply.Response = NewResponse(200)
+		reply.Head = query.Head
+		reply.Id = query.Id
+
+		topic[0] = "Sip"
+
+		log.Println("<<<", topic, &reply)
+
+		bytes, err := proto.Marshal(&reply)
+		if err != nil {
+			log.Fatalln(err)
+		}
 
 		token = client.Publish(strings.Join(topic, "/"), 0, false, bytes)
 		token.Wait()
