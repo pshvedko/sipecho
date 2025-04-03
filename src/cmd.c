@@ -20,26 +20,26 @@ static net_event_t *__con = NULL;
 
 static char hostname[];
 
-#define cmd_maintain_registrate cmd_maintain_request
-#define cmd_maintain_subscribe  cmd_maintain_request
-#define cmd_maintain_invite     cmd_maintain_request
-#define cmd_maintain_option     cmd_maintain_request
-#define cmd_maintain_cancel     cmd_maintain_request
-#define cmd_maintain_bye        cmd_maintain_request
-#define cmd_maintain_info       cmd_maintain_request
-#define cmd_maintain_notify     cmd_maintain_request
+#define cmd_maintain_registration   cmd_maintain_request
+#define cmd_maintain_subscribe      cmd_maintain_request
+#define cmd_maintain_invite         cmd_maintain_request
+#define cmd_maintain_option         cmd_maintain_request
+#define cmd_maintain_cancel         cmd_maintain_request
+#define cmd_maintain_bye            cmd_maintain_request
+#define cmd_maintain_info           cmd_maintain_request
+#define cmd_maintain_notify         cmd_maintain_request
 
 /**
  *
  */
-int cmd_finalize(const osip_message_t *m, const Sip__Message_Closure closure, void *opaque) {
-    log_debug("%s: %p %p %p", __PRETTY_FUNCTION__, m, closure, opaque);
+int cmd_finalize(const osip_message_t *m, const Sip__Message_Closure closure, void *opaque, const int id) {
+    log_debug("%s: %p %p %p %i", __PRETTY_FUNCTION__, m, closure, opaque, id);
 
     if (closure) {
-        Sip__Message *result = sip__message__proto(m, 0);
+        Sip__Message *result = sip__message__proto(m, id);
         if (result) {
             closure(result, opaque);
-            sip__message__free_unpacked(result, 0);
+            sip__message__free_unpacked(result, NULL);
             return 0;
         }
         closure(NULL, opaque);
@@ -73,30 +73,32 @@ static void cmd_finalise_request(const Sip__Message *reply, void *opaque) {
  */
 static void cmd_maintain_request(Sip_Service *, const Sip__Message *query, const Sip__Message_Closure closure,
                                  void *opaque) {
-    if (query && query->response) {
-        cmd_finalise_request(query, NULL);
+    if (!opaque)
         return;
-    }
 
-    if (!query || !query->head || !query->request || !query->head->cseq || !query->head->cseq->method) {
+    if (query && query->response)
+        cmd_finalise_request(query, NULL);
+
+    if (!query || query->response || !query->head || !query->request || !query->head->cseq) {
         closure(NULL, opaque);
         return;
     }
 
     log_debug("%s: %s %p %p", __PRETTY_FUNCTION__, query->head->cseq->method, closure, opaque);
 
-    osip_message_t *m = sip__message__unproto(query, FULL_REQUEST_BITSET, NULL);
+    int id = 0;
+    osip_message_t *m = sip__message__unproto(query, FULL_REQUEST_BITSET, &id);
     if (!m) {
         closure(NULL, opaque);
         return;
     }
-    sip_proxy(m, closure, opaque);
+    sip_proxy(m, closure, opaque, id);
 }
 
-#define cmd_finalise_registrate cmd_finalise_request
-#define cmd_finalise_invite     cmd_finalise_request
-#define cmd_finalise_option     cmd_finalise_request
-#define cmd_finalise_cancel     cmd_finalise_request
+#define cmd_finalise_registration   cmd_finalise_request
+#define cmd_finalise_invite         cmd_finalise_request
+#define cmd_finalise_option         cmd_finalise_request
+#define cmd_finalise_cancel         cmd_finalise_request
 #define cmd_finalise_bye        cmd_finalise_request
 #define cmd_finalise_info       cmd_finalise_request
 #define cmd_finalise_subscribe  cmd_finalise_request
@@ -130,7 +132,7 @@ static int cmd_ready(transport_t *cmd) {
 /**
  *
  */
-int cmd_initiate_registrate(osip_transaction_t *a, osip_message_t *m) {
+int cmd_initiate_registration(osip_transaction_t *a, osip_message_t *m) {
     if (!__con)
         return -1;
     if (!cmd_ready(__con->foo))
@@ -143,8 +145,8 @@ int cmd_initiate_registrate(osip_transaction_t *a, osip_message_t *m) {
         return -2;
 
     int ret = 0;
-    sip__registrate(__con->foo, query, cmd_finalise_registrate, &ret);
-    sip__message__free_unpacked(query, 0);
+    sip__registration(__con->foo, query, cmd_finalise_registration, &ret);
+    sip__message__free_unpacked(query, NULL);
     return ret;
 }
 
@@ -165,7 +167,7 @@ int cmd_initiate_invite(osip_transaction_t *a, osip_message_t *m) {
 
     int ret = 0;
     sip__invite(__con->foo, query, cmd_finalise_invite, &ret);
-    sip__message__free_unpacked(query, 0);
+    sip__message__free_unpacked(query, NULL);
     return ret;
 }
 
@@ -186,7 +188,7 @@ int cmd_initiate_option(osip_transaction_t *a, osip_message_t *m) {
 
     int ret = 0;
     sip__option(__con->foo, query, cmd_finalise_option, &ret);
-    sip__message__free_unpacked(query, 0);
+    sip__message__free_unpacked(query, NULL);
     return ret;
 }
 
@@ -207,7 +209,7 @@ int cmd_initiate_cancel(osip_transaction_t *a, osip_message_t *m) {
 
     int ret = 0;
     sip__cancel(__con->foo, query, cmd_finalise_cancel, &ret);
-    sip__message__free_unpacked(query, 0);
+    sip__message__free_unpacked(query, NULL);
     return ret;
 }
 
@@ -228,7 +230,7 @@ int cmd_initiate_bye(osip_transaction_t *a, osip_message_t *m) {
 
     int ret = 0;
     sip__bye(__con->foo, query, cmd_finalise_bye, &ret);
-    sip__message__free_unpacked(query, 0);
+    sip__message__free_unpacked(query, NULL);
     return ret;
 }
 
@@ -249,7 +251,7 @@ int cmd_initiate_info(osip_transaction_t *a, osip_message_t *m) {
 
     int ret = 0;
     sip__info(__con->foo, query, cmd_finalise_info, &ret);
-    sip__message__free_unpacked(query, 0);
+    sip__message__free_unpacked(query, NULL);
     return ret;
 }
 
@@ -270,7 +272,7 @@ int cmd_initiate_subscribe(osip_transaction_t *a, osip_message_t *m) {
 
     int ret = 0;
     sip__subscribe(__con->foo, query, cmd_finalise_subscribe, &ret);
-    sip__message__free_unpacked(query, 0);
+    sip__message__free_unpacked(query, NULL);
     return ret;
 }
 
@@ -422,7 +424,7 @@ int cmd_init() { return 0; }
  * @param ap
  * @return 
  */
-static int cmd_connect(net_event_t *net, const va_list ap) {
+static int cmd_operand(net_event_t *net, const va_list ap) {
     net->argv = calloc(3, sizeof(const char *));
     if (!net->argv)
         return -1;
@@ -449,7 +451,7 @@ const app_t __g_app_CMD = {
     cmd_release,
     cmd_execute,
     cmd_timeout,
-    cmd_connect,
+    cmd_operand,
     {{NULL, NULL}},
     {30, 0}
 };

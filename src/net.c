@@ -359,7 +359,7 @@ net_event_t *net_event_connect_v(const char *net, const char *app, const char *h
                 log_debug("%s: %i/%s/%s %s:%hu", __PRETTY_FUNCTION__, s, event->net->name, event->app->name,
                           host, port);
 
-                if ((event->app->connect && event->app->connect(event, ap)) ||
+                if ((event->app->operand && event->app->operand(event, ap)) ||
                     (event->app->acquire && event->app->acquire(event)) ||
                     (event->net->assign &&
                      event->net->assign(event->net, event->event->ev_fd, event->type, &event->foo))) {
@@ -416,11 +416,16 @@ net_event_t *net_event_open(const net_t *net, const app_t *app) {
  * @return
  */
 int net_send(net_event_t *net, mem_t *mem) {
-    if (net->net->block)
-        if (net->net->block(net->event->ev_fd, 0) < 0)
-            return -1;
-    if (net->net->send(net->event->ev_fd, mem, net->foo) < 0)
-        return -1;
+    while (mem->done < mem->end) {
+        if (net->net->send(net->event->ev_fd, mem, net->foo) < 0) {
+            switch (errno) {
+                case EAGAIN:
+                    continue;
+                default:
+                    return -1;
+            }
+        }
+    }
     return 0;
 }
 

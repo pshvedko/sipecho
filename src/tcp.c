@@ -158,17 +158,18 @@ static int tcp_accept(const int s, struct sockaddr *a, socklen_t *l) {
 /**
  *
  * @param s
- * @param yes
+ * @param set
+ * @param mask O_NONBLOCK|...
  * @return
  */
-static int tcp_block(const int s, const int yes) {
+int tcp_flag(const int s, const int set, const int mask) {
     int flag = fcntl(s, F_GETFL);
     if (flag < 0)
         return -1;
-    if (yes)
-        flag |= O_NONBLOCK;
+    if (set)
+        flag |= mask;
     else
-        flag &= ~O_NONBLOCK;
+        flag &= ~mask;
     if (fcntl(s, F_SETFL, flag) < 0)
         return -1;
     return 0;
@@ -188,7 +189,6 @@ const net_t __g_net_TCP = {
     tcp_open,
     tcp_read,
     tcp_send,
-    tcp_block,
     tcp_connect,
     tcp_accept,
     NULL,

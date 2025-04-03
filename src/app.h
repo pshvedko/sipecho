@@ -61,7 +61,7 @@ struct app {
 
     int (*timeout)(net_event_t *);
 
-    int (*connect)(net_event_t *, const va_list);
+    int (*operand)(net_event_t *, const va_list);
 
     struct {
         map_del_t destroy;
@@ -92,14 +92,14 @@ void sip_finalize(osip_message_t *, int);
 
 void sip_finalize_failure(int);
 
-void sip_proxy(osip_message_t *, Sip__Message_Closure, void *);
+void sip_proxy(osip_message_t *, Sip__Message_Closure, void *, int);
 
 /* cmd.c export */
 int cmd_init();
 
 void cmd_free();
 
-int cmd_initiate_registrate(osip_transaction_t *, osip_message_t *);
+int cmd_initiate_registration(osip_transaction_t *, osip_message_t *);
 
 int cmd_initiate_invite(osip_transaction_t *, osip_message_t *);
 
@@ -115,7 +115,7 @@ int cmd_initiate_subscribe(osip_transaction_t *, osip_message_t *);
 
 int cmd_initiate_notify(osip_transaction_t *, osip_message_t *);
 
-int cmd_finalize(const osip_message_t *, Sip__Message_Closure, void *);
+int cmd_finalize(const osip_message_t *, Sip__Message_Closure, void *, int);
 
 /* dns.c export */
 int dns_init();

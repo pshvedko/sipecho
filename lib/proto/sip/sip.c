@@ -98,7 +98,7 @@ char *sip_reason_by_code(const int code) {
         if (m->code == code)
             return strdup(m->reason);
 
-    return strdup("");
+    return strdup("Unspecified");
 }
 
 static int __binary__proto(ProtobufCBinaryData *bin, const void *data, size_t length) {
@@ -1107,7 +1107,7 @@ osip_message_t *sip__message__unproto(const Sip__Message *p, const unsigned bits
     osip_message_t *m = NULL;
     osip_message_init(&m);
 
-    if (p->response) {
+    if (p->response > 0) {
         m->status_code = p->response;
         m->reason_phrase = sip_reason_by_code(m->status_code);
     } else if (p->request && p->head && p->head->cseq && p->head->cseq->method) {

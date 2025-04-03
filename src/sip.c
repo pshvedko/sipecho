@@ -32,7 +32,6 @@ enum {
 
 #define SIP_RETRY			10
 
-#define FUCKYOUJAK			"jaK"
 #define CRLFCRLF			"\r\n\r\n"
 #define LFLF				"\n\n"
 
@@ -877,20 +876,19 @@ void sip_finalize_failure(const int id) {
             &__sip->osip_nict_transactions,
             NULL
         }, **next = transactions;
-
         while (*next) {
             osip_transaction_t *a = osip_transaction_find(*next, e);
             if (a) {
-                net_event_t *n = osip_transaction_get_event(a);
-                if (n) {
+                net_event_t *net = osip_transaction_get_event(a);
+                if (net) {
                     e->sip = sip_response_new(a, a->orig_request, SIP_INTERNAL_SERVER_ERROR);
                     if (!e->sip) {
                         sip_delete(a);
                         break;
                     }
                     sip_call(a, e);
-                    net_event_update(n, NULL);
-                    break;
+                    net_event_update(net, NULL);
+                    return;
                 }
             }
             next++;
@@ -949,24 +947,23 @@ static int sip_relay(osip_message_t *q, aor_record_t *to, const Sip__Message_Clo
     }
     osip_message_replace_header(q, "Max-Forwards", max_forward);
 
-    log_debug("%s: %s:%s@%s:%s;transport=%s",
-              __PRETTY_FUNCTION__, to->route->scheme, to->route->username, to->route->host, to->route->port,
-              to->protocol);
+    log_debug("%s: %s:%s/%s/%s",
+              __PRETTY_FUNCTION__, to->route->host, to->route->port, to->protocol, to->route->scheme);
 
-    net_event_t *event = net_event_find_by_id(to->id);
-    if (event == NULL) {
-        event = net_event_connect(to->protocol, to->route->scheme, to->route->host, net_port(to->route));
+    net_event_t *net = net_event_find_by_id(to->id);
+    if (net == NULL) {
+        net = net_event_connect(to->protocol, to->route->scheme, to->route->host, net_port(to->route));
     }
-    if (event) {
+    if (net) {
         osip_via_t *via = osip_list_get(&q->vias, 0);
         if (via) {
             osip_uri_param_t *branch = NULL;
             osip_via_param_get_byname(via, "branch", &branch);
             osip_via_init(&via);
             osip_via_set_version(via, osip_strdup("2.0"));
-            osip_via_set_protocol(via, osip_strdup(event->net->name));
-            osip_via_set_host(via, osip_strdup(event->app->hostname));
-            osip_via_set_port(via, osip_strdup(event->app->port));
+            osip_via_set_protocol(via, osip_strdup(net->net->name));
+            osip_via_set_host(via, osip_strdup(net->app->hostname));
+            osip_via_set_port(via, osip_strdup(net->app->port));
             osip_via_set_branch(via, osip_strdup(branch->gvalue));
             osip_uri_param_add(&via->via_params, osip_strdup("rport"), NULL);
             osip_list_add(&q->vias, via, 0);
@@ -976,7 +973,7 @@ static int sip_relay(osip_message_t *q, aor_record_t *to, const Sip__Message_Clo
             osip_uri_set_scheme(url, osip_strdup(to->route->scheme));
             osip_uri_set_host(url, osip_strdup(to->route->host));
             osip_uri_set_port(url, osip_strdup(to->route->port));
-            osip_uri_param_add(&url->url_params, osip_strdup("transport"), osip_strdup(event->net->name));
+            osip_uri_param_add(&url->url_params, osip_strdup("transport"), osip_strdup(net->net->name));
             osip_uri_param_add(&url->url_params, osip_strdup("lr"), NULL);
 
             osip_route_t *route = NULL;
@@ -984,25 +981,25 @@ static int sip_relay(osip_message_t *q, aor_record_t *to, const Sip__Message_Clo
             osip_route_set_url(route, url);
             osip_list_add(&q->routes, route, 0);
 
-            sip_message_add_record_route(q, event);
+            sip_message_add_record_route(q, net);
 
             osip_event_t *e = osip_new_outgoing_sipmessage(q);
             if (e) {
-                const int n = sip_loop(e, event, closure, opaque, NULL);
+                const int n = sip_loop(e, net, closure, opaque, NULL);
                 if (n == 0) {
                     const struct timeval timeout = {.tv_sec = 64 * DEFAULT_T1 / 1000, .tv_usec = 0};
-                    if (net_is_connected(event))
-                        net_event_update(event, &timeout);
+                    if (net_is_connected(net))
+                        net_event_update(net, &timeout);
                     else
-                        net_event_update(event, NULL);
+                        net_event_update(net, NULL);
                     return 0;
                 }
             }
             osip_list_remove(&q->vias, 0);
             osip_via_free(via);
         }
-        if (net_is_connected(event))
-            net_event_free(event);
+        if (net_is_connected(net))
+            net_event_free(net);
     }
     return -1;
 }
@@ -1010,7 +1007,7 @@ static int sip_relay(osip_message_t *q, aor_record_t *to, const Sip__Message_Clo
 /**
  *
  */
-void sip_proxy(osip_message_t *q, const Sip__Message_Closure closure, void *opaque) {
+void sip_proxy(osip_message_t *q, const Sip__Message_Closure closure, void *opaque, const int id) {
     const time_t now = time(0);
 
     log_debug(FL_CYAN "%s: %s" FD_NORMAL, __PRETTY_FUNCTION__, q->sip_method);
@@ -1035,9 +1032,9 @@ void sip_proxy(osip_message_t *q, const Sip__Message_Closure closure, void *opaq
         else
             sip_response(q, SIP_GONE);
     } else
-        sip_response(q, SIP_NOT_FOUND);
+        sip_response(q, SIP_FORBIDDEN);
 
-    cmd_finalize(q, closure, opaque);
+    cmd_finalize(q, closure, opaque, id);
 
     osip_message_free(q);
 }
@@ -1057,7 +1054,7 @@ static osip_message_t *sip_response_join(osip_message_t *m1, osip_message_t *m2)
  *
  */
 static osip_message_t *sip_callback_register(osip_transaction_t *a, osip_message_t *q) {
-    const int n = cmd_initiate_registrate(a, q);
+    const int n = cmd_initiate_registration(a, q);
     switch (n) {
         case 0:
             return NULL;
@@ -1451,10 +1448,10 @@ void sip_destroy(void *x) {
                                                      ? SIP_BAD_GATEWAY
                                                      : SIP_REQUEST_TIME_OUT);
             sip_message_remove_top_via(m);
-            cmd_finalize(m, closure, opaque);
+            cmd_finalize(m, closure, opaque, a->transactionid);
             osip_message_free(m);
         } else
-            cmd_finalize(a->last_response, closure, opaque);
+            cmd_finalize(a->last_response, closure, opaque, a->transactionid);
     }
 
     void *timeout = osip_transaction_get_timeout(a);
@@ -1465,6 +1462,18 @@ void sip_destroy(void *x) {
     osip_remove_transaction(__sip, a);
     osip_transaction_free2(a);
 }
+
+/**
+ *
+ * @param net
+ * @return
+ */
+static int sip_timeout(net_event_t *net) {
+    log_debug("%s: %i/%s/%s", __PRETTY_FUNCTION__, net->event->ev_fd, net->net->name, net->app->name);
+
+    return 0;
+}
+
 
 /**
  *
@@ -1499,8 +1508,8 @@ const app_t __g_app_SIP = {
     NULL /* acquire */,
     NULL /* release */,
     sip_execute,
-    NULL,
+    sip_timeout,
     NULL,
     {{sip_destroy, map_item_cmp}},
-    {1, 0}
+    {60, 0}
 };

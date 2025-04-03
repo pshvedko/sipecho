@@ -3,7 +3,7 @@ syntax = "proto2";
 import "message.proto";
 
 service Sip {
-	rpc registrate (sip.message) returns (sip.message);
+	rpc registration (sip.message) returns (sip.message);
 	rpc invite (sip.message) returns (sip.message);
 	rpc option (sip.message) returns (sip.message);
 	rpc cancel (sip.message) returns (sip.message);

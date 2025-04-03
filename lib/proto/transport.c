@@ -68,7 +68,8 @@ static void invoke(ProtobufCService *service, const unsigned int index,
             free(buf);
         }
     }
-    closure(NULL, opaque);
+    if (closure)
+        closure(NULL, opaque);
 }
 
 struct topic {
@@ -139,11 +140,40 @@ static unsigned get_method(transport_t *t, const void *name, const uint16_t size
 }
 
 /**
+ *
+ */
+struct token {
+    struct transport *transport;
+    unsigned index;
+};
+
+/**
+ * 
+ * @param transport 
+ * @param index 
+ * @return 
+ */
+static struct token *token_new(struct transport *transport, const unsigned index) {
+    struct token *t = malloc(sizeof(struct token));
+    if (t) {
+        t->transport = transport;
+        t->index = index;
+    }
+    return t;
+}
+
+/**
  * 
  * @param message 
  * @param opaque 
  */
-static void input_callback(const ProtobufCMessage *message, void *opaque) {
+static void callback(const ProtobufCMessage *message, void *opaque) {
+    if (message) {
+        const struct token *token = opaque;
+        if (token)
+            invoke(token->transport->base, token->index, message, NULL, NULL);
+    }
+    free(opaque);
 }
 
 /**
@@ -160,7 +190,7 @@ static void input(transport_t *t, const struct mqtt_response_publish input, void
                                                           input.application_message_size,
                                                           input.application_message);
     if (message)
-        t->methods[i](t->base, message, input_callback, NULL);
+        t->methods[i](t->base, message, callback, token_new(t, i));
     protobuf_c_message_free_unpacked(message, NULL);
 }
 

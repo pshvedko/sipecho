@@ -39,8 +39,6 @@ typedef struct net {
 
     int (*send)(int, struct mem *, void *);
 
-    int (*block)(int, int);
-
     int (*connect)(const struct net *, const char *, unsigned short);
 
     int (*accept)(int, struct sockaddr *, socklen_t *);
