@@ -55,3 +55,4 @@ cmake-build-*
 
 # Generated
 *.pb.go
+*.pid

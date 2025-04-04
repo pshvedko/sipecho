@@ -14,6 +14,7 @@ cmake_compile(
         LIBRARIES protosip
         proto
         mqtt
+        uuid
         ${LDNS_LIBRARIES}
         ${EVENT_LIBRARIES}
         ${OSIP2_LIBRARIES}

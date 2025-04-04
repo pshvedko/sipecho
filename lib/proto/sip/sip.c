@@ -101,7 +101,7 @@ char *sip_reason_by_code(const int code) {
     return strdup("Unspecified");
 }
 
-static int __binary__proto(ProtobufCBinaryData *bin, const void *data, size_t length) {
+static int __binary__proto(ProtobufCBinaryData *bin, const void *data, const size_t length) {
     if (!bin)
         return 0;
 
@@ -131,14 +131,12 @@ static int __array__proto(const osip_list_t *l, size_t *s, void ***a, void * (*c
     }
 
     *a = calloc(*s, sizeof(void *));
-    if (*s && !a) {
+    if (*s && !*a) {
         *s = 0;
         return -1;
     }
 
-    int i = 0;
-
-    for (; i < *s; ++i) {
+    for (int i = 0; i < *s; ++i) {
         (*a)[i] = call(osip_list_get(l, i));
         if (!(*a)[i]) {
             *s = i;
@@ -200,8 +198,7 @@ Sip__Type__CallId *sip__type__call_id__new(const char *number, const char *host)
 Sip__Type__CallId *sip__type__call_id__proto(const osip_call_id_t *q) {
     if (!q)
         return NULL;
-    else
-        return sip__type__call_id__new(q->number, q->host);
+    return sip__type__call_id__new(q->number, q->host);
 }
 
 Sip__Type__Cseq *sip__type__cseq__new(const char *number, const char *method) {
@@ -217,8 +214,7 @@ Sip__Type__Cseq *sip__type__cseq__new(const char *number, const char *method) {
 Sip__Type__Cseq *sip__type__cseq__proto(const osip_cseq_t *q) {
     if (!q)
         return NULL;
-    else
-        return sip__type__cseq__new(q->number, q->method);
+    return sip__type__cseq__new(q->number, q->method);
 }
 
 Sip__Type__Pair *sip__type__pair__new(const char *name, const char *value) {
@@ -234,8 +230,7 @@ Sip__Type__Pair *sip__type__pair__new(const char *name, const char *value) {
 Sip__Type__Pair *sip__type__pair__proto(const osip_generic_param_t *q) {
     if (!q)
         return NULL;
-    else
-        return sip__type__pair__new(q->gname, q->gvalue);
+    return sip__type__pair__new(q->gname, q->gvalue);
 }
 
 Sip__Type__Uri *sip__type__uri__new(const char *scheme, const char *username, const char *password,
@@ -393,9 +388,8 @@ Sip__Type__Authenticate *sip__type__authenticate__new(const char *algorithm, con
 Sip__Type__Authenticate *sip__type__authenticate__proto(const osip_www_authenticate_t *q) {
     if (!q)
         return NULL;
-    else
-        return sip__type__authenticate__new(q->algorithm, q->auth_param, q->auth_type, q->domain, q->nonce,
-                                            q->opaque, q->qop_options, q->realm, q->stale);
+    return sip__type__authenticate__new(q->algorithm, q->auth_param, q->auth_type, q->domain, q->nonce,
+                                        q->opaque, q->qop_options, q->realm, q->stale);
 }
 
 Sip__Type__Authentication *sip__type__authentication__proto(const osip_authentication_info_t *q) {
@@ -453,9 +447,6 @@ Sip__Type__Via *sip__type__via__proto(const osip_via_t *q) {
 }
 
 static Sip__Head *sip__head__proto(const osip_message_t *m) {
-    if (!m)
-        return NULL;
-
     Sip__Head *p = malloc(sizeof(Sip__Head));
     while (p) {
         sip__head__init(p);
@@ -576,7 +567,7 @@ Sip__Type__Dtmf *sip__type__dtmf__proto(const char *q) {
     // http://tools.ietf.org/html/draft-kaplan-dispatch-info-dtmf-package-00#section-5
     // http://tools.ietf.org/html/rfc2833#section-3.10
 
-    int n = sscanf(q, "Signal = %3[0-9A-D*#] Duration = %u", key, &duration);
+    const int n = sscanf(q, "Signal = %3[0-9A-D*#] Duration = %u", key, &duration);
     if (n != 2)
         return NULL;
 
@@ -694,15 +685,28 @@ static int __content__proto(const osip_message_t *m, Sip__Type__Content ***p_con
     return z;
 }
 
-Sip__Message *sip__message__proto(const osip_message_t *m, const int id) {
-    if (!m)
+static Sip__Uuid *sip__uuid__new(const uuid_t id) {
+    Sip__Uuid *p = malloc(sizeof(Sip__Uuid));
+    if (p) {
+        sip__uuid__init(p);
+
+        memcpy(&p->upper, id, sizeof(uuid_t));
+    }
+    return p;
+}
+
+Sip__Message *sip__message__proto(const osip_message_t *m, const uuid_t id) {
+    if (!m || !id)
         return NULL;
 
     Sip__Message *p = malloc(sizeof(Sip__Message));
     while (p) {
         sip__message__init(p);
 
-        p->id = id;
+        p->id = sip__uuid__new(id);
+        if (!p->id)
+            break;
+
         p->response = m->status_code;
 
         p->request = sip__type__uri__proto(m->req_uri);
@@ -1097,12 +1101,15 @@ static int __content__unproto(osip_message_t *m, Sip__Type__Content **const p_co
                             (void *(*)(const void *)) &sip__type__content__unproto);
 }
 
-osip_message_t *sip__message__unproto(const Sip__Message *p, const unsigned bitset, int *id) {
+osip_message_t *sip__message__unproto(const Sip__Message *p, const unsigned bitset, uuid_t id) {
     if (!p || p->base.descriptor != &sip__message__descriptor)
         return NULL;
 
+    if (!p->id)
+        return NULL;
+
     if (id)
-        *id = p->id;
+        memcpy(id, &p->id->upper, sizeof(uuid_t));
 
     osip_message_t *m = NULL;
     osip_message_init(&m);
@@ -1154,9 +1161,8 @@ Sip__Type__Sdp__Connection *sip__type__sdp__connection__new(const char *c_addr, 
 Sip__Type__Sdp__Connection *sip__type__sdp__connection__proto(const sdp_connection_t *q) {
     if (!q)
         return NULL;
-    else
-        return sip__type__sdp__connection__new(q->c_addr, q->c_addrtype, q->c_nettype,
-                                               q->c_addr_multicast_int, q->c_addr_multicast_ttl);
+    return sip__type__sdp__connection__new(q->c_addr, q->c_addrtype, q->c_nettype,
+                                           q->c_addr_multicast_int, q->c_addr_multicast_ttl);
 }
 
 Sip__Type__Sdp__Bandwidth *sip__type__sdp__bandwidth__new(const char *b_bandwidth, const char *b_bwtype) {
@@ -1172,8 +1178,7 @@ Sip__Type__Sdp__Bandwidth *sip__type__sdp__bandwidth__new(const char *b_bandwidt
 Sip__Type__Sdp__Bandwidth *sip__type__sdp__bandwidth__proto(const sdp_bandwidth_t *q) {
     if (!q)
         return NULL;
-    else
-        return sip__type__sdp__bandwidth__new(q->b_bandwidth, q->b_bwtype);
+    return sip__type__sdp__bandwidth__new(q->b_bandwidth, q->b_bwtype);
 }
 
 Sip__Type__Sdp__Time *sip__type__sdp__time__new(const char *t_start_time, const char *t_stop_time) {
@@ -1210,8 +1215,7 @@ Sip__Type__Sdp__Key *sip__type__sdp__key__new(const char *k_keydata, const char 
 Sip__Type__Sdp__Key *sip__type__sdp__key__proto(const sdp_key_t *q) {
     if (!q)
         return NULL;
-    else
-        return sip__type__sdp__key__new(q->k_keydata, q->k_keytype);
+    return sip__type__sdp__key__new(q->k_keydata, q->k_keytype);
 }
 
 Sip__Type__Sdp__Attribute *sip__type__sdp__attribute__new(const char *a_att_field, const char *a_att_value) {
@@ -1227,8 +1231,7 @@ Sip__Type__Sdp__Attribute *sip__type__sdp__attribute__new(const char *a_att_fiel
 Sip__Type__Sdp__Attribute *sip__type__sdp__attribute__proto(const sdp_attribute_t *q) {
     if (!q)
         return NULL;
-    else
-        return sip__type__sdp__attribute__new(q->a_att_field, q->a_att_value);
+    return sip__type__sdp__attribute__new(q->a_att_field, q->a_att_value);
 }
 
 Sip__Type__Sdp__Media *sip__type__sdp__media__new(const char *m_media, const char *m_port,
@@ -1293,7 +1296,7 @@ Sip__Type__Sdp *sip__type__sdp__proto(const sdp_message_t *q) {
     Sip__Type__Sdp *p = sip__type__sdp__new(q->v_version, q->o_username, q->o_sess_id, q->o_sess_version,
                                             q->o_nettype, q->o_addrtype, q->o_addr, q->s_name, q->i_info, q->u_uri,
                                             q->z_adjustments);
-    while (p) {
+    if (p) {
         array__proto(&q->e_emails, p, e_emails);
         array__proto(&q->p_phones, p, p_phones);
         array__proto(&q->b_bandwidths, p, b_bandwidths);
@@ -1303,12 +1306,8 @@ Sip__Type__Sdp *sip__type__sdp__proto(const sdp_message_t *q) {
 
         p->c_connection = sip__type__sdp__connection__proto(q->c_connection);
         p->k_key = sip__type__sdp__key__proto(q->k_key);
-
-        return p;
     }
-    if (p)
-        sip__type__sdp__free_unpacked(p, 0);
-    return NULL;
+    return p;
 }
 
 sdp_connection_t *sip__type__sdp__connection__unproto(const Sip__Type__Sdp__Connection *p) {

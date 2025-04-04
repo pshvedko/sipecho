@@ -9,12 +9,21 @@
 #include "config.h"
 #endif
 
+#include <uuid/uuid.h>
+
 #include "lib/common/map.h"
 #include "lib/proto/sip/sip.h"
 #include "lib/proto/transport.h"
 
 #include "app.h"
 #include "log.h"
+
+typedef struct session {
+    int id;
+    unsigned char uuid[16];
+} session_t;
+
+static struct map *__ses; /**< Transaction id, map of @session_t */
 
 static net_event_t *__con = NULL;
 
@@ -31,9 +40,14 @@ static char hostname[];
 
 /**
  *
+ * @param m
+ * @param closure
+ * @param opaque
+ * @param id
+ * @return
  */
-int cmd_finalize(const osip_message_t *m, const Sip__Message_Closure closure, void *opaque, const int id) {
-    log_debug("%s: %p %p %p %i", __PRETTY_FUNCTION__, m, closure, opaque, id);
+int cmd_finalize(const osip_message_t *m, const Sip__Message_Closure closure, void *opaque, const uuid_t id) {
+    log_debug("%s: %p %p %p", __PRETTY_FUNCTION__, m, closure, opaque);
 
     if (closure) {
         Sip__Message *result = sip__message__proto(m, id);
@@ -47,9 +61,6 @@ int cmd_finalize(const osip_message_t *m, const Sip__Message_Closure closure, vo
     return -1;
 }
 
-/**
- *
- */
 static void cmd_finalise_request(const Sip__Message *reply, void *opaque) {
     if (!reply) {
         int *ret = opaque;
@@ -60,17 +71,16 @@ static void cmd_finalise_request(const Sip__Message *reply, void *opaque) {
 
     log_debug("%s: %p %p", __PRETTY_FUNCTION__, reply, opaque);
 
-    int id = 0;
-    osip_message_t *m = sip__message__unproto(reply, FULL_RESPONSE_BITSET, &id);
-    if (id && m && m->status_code)
+    uuid_t id = {};
+    osip_message_t *m = sip__message__unproto(reply, FULL_RESPONSE_BITSET, id);
+    if (uuid_is_null(id))
+        osip_message_free(m);
+    else if (m && m->status_code)
         sip_finalize(m, id);
-    else if (id)
+    else
         sip_finalize_failure(id);
 }
 
-/**
- *
- */
 static void cmd_maintain_request(Sip_Service *, const Sip__Message *query, const Sip__Message_Closure closure,
                                  void *opaque) {
     if (!opaque)
@@ -86,10 +96,12 @@ static void cmd_maintain_request(Sip_Service *, const Sip__Message *query, const
 
     log_debug("%s: %s %p %p", __PRETTY_FUNCTION__, query->head->cseq->method, closure, opaque);
 
-    int id = 0;
-    osip_message_t *m = sip__message__unproto(query, FULL_REQUEST_BITSET, &id);
-    if (!m) {
+    uuid_t id = {};
+    osip_message_t *m = sip__message__unproto(query, FULL_REQUEST_BITSET, id);
+
+    if (!m || uuid_is_null(id)) {
         closure(NULL, opaque);
+        osip_message_free(m);
         return;
     }
     sip_proxy(m, closure, opaque, id);
@@ -99,9 +111,9 @@ static void cmd_maintain_request(Sip_Service *, const Sip__Message *query, const
 #define cmd_finalise_invite         cmd_finalise_request
 #define cmd_finalise_option         cmd_finalise_request
 #define cmd_finalise_cancel         cmd_finalise_request
-#define cmd_finalise_bye        cmd_finalise_request
-#define cmd_finalise_info       cmd_finalise_request
-#define cmd_finalise_subscribe  cmd_finalise_request
+#define cmd_finalise_bye            cmd_finalise_request
+#define cmd_finalise_info           cmd_finalise_request
+#define cmd_finalise_subscribe      cmd_finalise_request
 
 static int cmd_ping(transport_t *cmd) {
     return cmd->ping(cmd, NULL);
@@ -129,8 +141,85 @@ static int cmd_ready(transport_t *cmd) {
     return 0;
 }
 
+static void cmd_session_delete(session_t *ses) {
+    if (ses)
+        free(ses);
+}
+
+static int cmd_session_cmp(const session_t *a, const session_t *b, const int i) {
+    switch (i) {
+        case 0:
+            return map_mem4_cmp(&a->id, &b->id, i);
+        case 1:
+            return uuid_compare(a->uuid, b->uuid);
+        default:
+            return -1;
+    }
+}
+
+static const unsigned char *cmd_session_get(const int id) {
+    struct session key = {.id = id, .uuid = {}}, *ses = map_find(__ses, &key, 0);
+    if (!ses) {
+        ses = calloc(1, sizeof(struct session));
+        ses->id = id;
+        uuid_generate_random(ses->uuid);
+        if (map_push(__ses, ses)) {
+            cmd_session_delete(ses);
+            return NULL;
+        }
+    }
+    return ses->uuid;
+}
+
 /**
- *
+ * 
+ * @param id 
+ * @param in 
+ * @return 
+ */
+int cmd_session_add(const int id, const uuid_t in) {
+    struct session *ses = calloc(1, sizeof(struct session));
+    if (!ses)
+        return -1;
+    ses->id = id;
+    uuid_copy(ses->uuid, in);
+    return map_push(__ses, ses);
+}
+
+/**
+ * 
+ * @param in 
+ * @return 
+ */
+int cmd_session_find(const uuid_t in) {
+    struct session key = {.id = 0, .uuid = UUID_COPY(in)}, *ses = map_find(__ses, &key, 1);
+    if (ses) {
+        ses->uuid[0] = in[0];
+        return ses->id;
+    }
+    return -1;
+}
+
+/**
+ * 
+ * @param id 
+ * @param out 
+ * @return 
+ */
+int cmd_session_destroy(const int id, uuid_t out) {
+    struct session key = {.id = id}, *ses = map_get(__ses, &key, 0);
+    if (!ses)
+        return -1;
+    uuid_copy(out, ses->uuid);
+    cmd_session_delete(ses);
+    return 0;
+}
+
+/**
+ * 
+ * @param a 
+ * @param m 
+ * @return 
  */
 int cmd_initiate_registration(osip_transaction_t *a, osip_message_t *m) {
     if (!__con)
@@ -140,7 +229,7 @@ int cmd_initiate_registration(osip_transaction_t *a, osip_message_t *m) {
 
     log_debug("%s: %p %s", __PRETTY_FUNCTION__, m->req_uri, m->sip_version);
 
-    Sip__Message *query = sip__message__proto(m, a->transactionid);
+    Sip__Message *query = sip__message__proto(m, cmd_session_get(a->transactionid));
     if (!query)
         return -2;
 
@@ -151,7 +240,10 @@ int cmd_initiate_registration(osip_transaction_t *a, osip_message_t *m) {
 }
 
 /**
- *
+ * 
+ * @param a 
+ * @param m 
+ * @return 
  */
 int cmd_initiate_invite(osip_transaction_t *a, osip_message_t *m) {
     if (!__con)
@@ -161,7 +253,7 @@ int cmd_initiate_invite(osip_transaction_t *a, osip_message_t *m) {
 
     log_debug("%s: %p %s", __PRETTY_FUNCTION__, m->req_uri, m->sip_version);
 
-    Sip__Message *query = sip__message__proto(m, a->transactionid);
+    Sip__Message *query = sip__message__proto(m, cmd_session_get(a->transactionid));
     if (!query)
         return -2;
 
@@ -172,7 +264,10 @@ int cmd_initiate_invite(osip_transaction_t *a, osip_message_t *m) {
 }
 
 /**
- *
+ * 
+ * @param a 
+ * @param m 
+ * @return 
  */
 int cmd_initiate_option(osip_transaction_t *a, osip_message_t *m) {
     if (!__con)
@@ -182,7 +277,7 @@ int cmd_initiate_option(osip_transaction_t *a, osip_message_t *m) {
 
     log_debug("%s: %p %s", __PRETTY_FUNCTION__, m->req_uri, m->sip_version);
 
-    Sip__Message *query = sip__message__proto(m, a->transactionid);
+    Sip__Message *query = sip__message__proto(m, cmd_session_get(a->transactionid));
     if (!query)
         return -2;
 
@@ -193,7 +288,10 @@ int cmd_initiate_option(osip_transaction_t *a, osip_message_t *m) {
 }
 
 /**
- *
+ * 
+ * @param a 
+ * @param m 
+ * @return 
  */
 int cmd_initiate_cancel(osip_transaction_t *a, osip_message_t *m) {
     if (!__con)
@@ -203,7 +301,7 @@ int cmd_initiate_cancel(osip_transaction_t *a, osip_message_t *m) {
 
     log_debug("%s: %p %s", __PRETTY_FUNCTION__, m->req_uri, m->sip_version);
 
-    Sip__Message *query = sip__message__proto(m, a->transactionid);
+    Sip__Message *query = sip__message__proto(m, cmd_session_get(a->transactionid));
     if (!query)
         return -2;
 
@@ -214,7 +312,10 @@ int cmd_initiate_cancel(osip_transaction_t *a, osip_message_t *m) {
 }
 
 /**
- *
+ * 
+ * @param a 
+ * @param m 
+ * @return 
  */
 int cmd_initiate_bye(osip_transaction_t *a, osip_message_t *m) {
     if (!__con)
@@ -224,7 +325,7 @@ int cmd_initiate_bye(osip_transaction_t *a, osip_message_t *m) {
 
     log_debug("%s: %p %s", __PRETTY_FUNCTION__, m->req_uri, m->sip_version);
 
-    Sip__Message *query = sip__message__proto(m, a->transactionid);
+    Sip__Message *query = sip__message__proto(m, cmd_session_get(a->transactionid));
     if (!query)
         return -2;
 
@@ -235,7 +336,10 @@ int cmd_initiate_bye(osip_transaction_t *a, osip_message_t *m) {
 }
 
 /**
- *
+ * 
+ * @param a 
+ * @param m 
+ * @return 
  */
 int cmd_initiate_info(osip_transaction_t *a, osip_message_t *m) {
     if (!__con)
@@ -245,7 +349,7 @@ int cmd_initiate_info(osip_transaction_t *a, osip_message_t *m) {
 
     log_debug("%s: %p %s", __PRETTY_FUNCTION__, m->req_uri, m->sip_version);
 
-    Sip__Message *query = sip__message__proto(m, a->transactionid);
+    Sip__Message *query = sip__message__proto(m, cmd_session_get(a->transactionid));
     if (!query)
         return -2;
 
@@ -256,7 +360,10 @@ int cmd_initiate_info(osip_transaction_t *a, osip_message_t *m) {
 }
 
 /**
- *
+ * 
+ * @param a 
+ * @param m 
+ * @return 
  */
 int cmd_initiate_subscribe(osip_transaction_t *a, osip_message_t *m) {
     if (!__con)
@@ -266,7 +373,7 @@ int cmd_initiate_subscribe(osip_transaction_t *a, osip_message_t *m) {
 
     log_debug("%s: %p %s", __PRETTY_FUNCTION__, m->req_uri, m->sip_version);
 
-    Sip__Message *query = sip__message__proto(m, a->transactionid);
+    Sip__Message *query = sip__message__proto(m, cmd_session_get(a->transactionid));
     if (!query)
         return -2;
 
@@ -277,7 +384,11 @@ int cmd_initiate_subscribe(osip_transaction_t *a, osip_message_t *m) {
 }
 
 /**
- *
+ * 
+ * @param foo 
+ * @param err 
+ * @param msg 
+ * @return 
  */
 static int cmd_error(void *foo, const long err, const char *msg) {
     net_event_t *net = foo;
@@ -292,7 +403,11 @@ static int cmd_error(void *foo, const long err, const char *msg) {
 }
 
 /**
- *
+ * 
+ * @param foo 
+ * @param buf 
+ * @param len 
+ * @return 
  */
 static int cmd_relay(void *foo, char *buf, const unsigned short len) {
     net_event_t *net = foo;
@@ -328,7 +443,9 @@ static void *cmd_new(net_event_t *net) {
 }
 
 /**
- *
+ * 
+ * @param net 
+ * @return 
  */
 static int cmd_acquire(net_event_t *net) {
     log_debug("%s: %i/%s/%s [%s]", __PRETTY_FUNCTION__, net->event->ev_fd, net->net->name, net->app->name,
@@ -347,7 +464,9 @@ static int cmd_acquire(net_event_t *net) {
 
 
 /**
- *
+ * 
+ * @param net 
+ * @return 
  */
 static int cmd_execute(net_event_t *net) {
     log_debug("%s: %i/%s/%s [%hu:%hu:%hu]", __PRETTY_FUNCTION__, net->event->ev_fd, net->net->name, net->app->name,
@@ -415,14 +534,9 @@ static int cmd_timeout(net_event_t *net) {
 
 /**
  *
- */
-int cmd_init() { return 0; }
-
-/**
- * 
  * @param net
  * @param ap
- * @return 
+ * @return
  */
 static int cmd_operand(net_event_t *net, const va_list ap) {
     net->argv = calloc(3, sizeof(const char *));
@@ -435,9 +549,22 @@ static int cmd_operand(net_event_t *net, const va_list ap) {
 }
 
 /**
- *
+ * 
+ * @return
+ */
+int cmd_init() {
+    __ses = map_new((map_del_t) &cmd_session_delete, (map_cmp_t) &cmd_session_cmp, (map_cmp_t) &cmd_session_cmp, NULL);
+    if (!__ses)
+        return -1;
+
+    return 0;
+}
+
+/**
+ * 
  */
 void cmd_free() {
+    map_free(__ses);
 }
 
 static char hostname[256] = "FIXME";

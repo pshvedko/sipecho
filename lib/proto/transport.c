@@ -150,7 +150,8 @@ struct token {
 /**
  * 
  * @param transport 
- * @param index 
+ * @param index
+ * @param opaque
  * @return 
  */
 static struct token *token_new(struct transport *transport, const unsigned index) {
@@ -191,6 +192,8 @@ static void input(transport_t *t, const struct mqtt_response_publish input, void
                                                           input.application_message);
     if (message)
         t->methods[i](t->base, message, callback, token_new(t, i));
+    else
+        ERROR(t, MQTT_ERROR_NULLPTR);
     protobuf_c_message_free_unpacked(message, NULL);
 }
 

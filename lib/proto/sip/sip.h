@@ -9,6 +9,7 @@
 #define SIP_H_
 
 #include <sys/time.h>
+#include <uuid/uuid.h>
 
 #include <osipparser2/osip_message.h>
 #include <osipparser2/sdp_message.h>
@@ -137,7 +138,7 @@ Sip__Type__Sdp__Media *sip__type__sdp__media__proto(const sdp_media_t *);
 
 Sip__Type__Sdp *sip__type__sdp__proto(const sdp_message_t *);
 
-Sip__Message *sip__message__proto(const osip_message_t *, int);
+Sip__Message *sip__message__proto(const osip_message_t *, const uuid_t);
 
 #define sip__type__accept__unproto 					sip__type__content_type__unproto
 #define sip__type__accept_encoding__unproto 		sip__type__encode__unproto
@@ -207,7 +208,7 @@ sdp_media_t *sip__type__sdp__media__unproto(const Sip__Type__Sdp__Media *);
 
 sdp_message_t *sip__type__sdp__unproto(const Sip__Type__Sdp *);
 
-osip_message_t *sip__message__unproto(const Sip__Message *, unsigned, int *id);
+osip_message_t *sip__message__unproto(const Sip__Message *, unsigned, uuid_t);
 
 enum {
 	SIP__BIT__FROM,

@@ -1,14 +1,12 @@
 package main
 
 import (
+	"github.com/google/uuid"
 	"log"
 	"strings"
 	"time"
 
 	"github.com/eclipse/paho.mqtt.golang"
-
-	xxx "github.com/yosssi/gmq/mqtt"
-	xxx3 "github.com/yosssi/gmq/mqtt/client"
 
 	"google.golang.org/protobuf/proto"
 
@@ -16,30 +14,6 @@ import (
 )
 
 func main() {
-
-	_ = xxx3.PublishOptions{
-		QoS:       xxx.QoS0,
-		Retain:    false,
-		TopicName: nil,
-		Message:   nil,
-	}
-	_ = xxx3.ConnectOptions{
-		Network:         "",
-		Address:         "",
-		TLSConfig:       nil,
-		CONNACKTimeout:  0,
-		PINGRESPTimeout: 0,
-		ClientID:        nil,
-		UserName:        nil,
-		Password:        nil,
-		CleanSession:    false,
-		KeepAlive:       0,
-		WillTopic:       nil,
-		WillMessage:     nil,
-		WillQoS:         0,
-		WillRetain:      false,
-	}
-
 	messages := make(chan mqtt.Message)
 
 	opts := mqtt.NewClientOptions()
@@ -57,6 +31,8 @@ func main() {
 	token := client.Connect()
 	token.Wait()
 
+	requests := map[uuid.UUID]uuid.UUID{}
+
 	for m := range messages {
 		topic := strings.Split(m.Topic(), "/")
 
@@ -70,19 +46,24 @@ func main() {
 
 		if message.IsRequest() {
 			switch topic[1] {
-
 			case "registration":
-				// return response
 				message.Response = sip.NewResponse(200)
-
-			case "invite":
-				// return message back
-
 			default:
-				continue
+				var id uuid.UUID
+				id, message.Id = message.Id.GetUUID(), sip.NewUUID()
+				requests[message.Id.GetUUID()] = id
 			}
 		} else {
-			// return message back
+			switch topic[1] {
+			case "registration":
+				continue
+			default:
+				id, ok := requests[message.Id.GetUUID()]
+				if !ok {
+					continue
+				}
+				message.Id = sip.NewUUIDFrom(id)
+			}
 		}
 
 		topic[0] = "Sip"

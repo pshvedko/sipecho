@@ -18,6 +18,8 @@
 
 #include "net.h"
 
+#define SIP_RETRY			    9
+
 #define SIP_DEFAULT_VERSION		"SIP/2.0"
 #define SIP_DEFAULT_PORT		"5060"
 #define SIP_DEFAULT_EXPIRES		3600
@@ -44,6 +46,8 @@
 
 #define __type_name(T) 		{(T), #T}
 #define __type_name_END		{ 0, NULL }
+
+#define UUID_COPY(id)       {id[0],id[1],id[2],id[3],id[4],id[5],id[6],id[7],id[8],id[9],id[10],id[11],id[12],id[13],id[14],id[15]}
 
 void app_set_hostname(const app_t *, const char *);
 
@@ -76,7 +80,7 @@ int sip_init();
 
 int sip_call(osip_transaction_t *, osip_event_t *);
 
-int sip_loop(osip_event_t *, void *, ...);
+osip_transaction_t *sip_loop(osip_event_t *, void *, ...);
 
 int sip_get_online(const char *);
 
@@ -88,11 +92,11 @@ void sip_destroy(void *);
 
 void sip_dump(const char *, const char *, unsigned);
 
-void sip_finalize(osip_message_t *, int);
+void sip_finalize(osip_message_t *, const uuid_t);
 
-void sip_finalize_failure(int);
+void sip_finalize_failure(const uuid_t);
 
-void sip_proxy(osip_message_t *, Sip__Message_Closure, void *, int);
+void sip_proxy(osip_message_t *, Sip__Message_Closure, void *, const uuid_t);
 
 /* cmd.c export */
 int cmd_init();
@@ -115,7 +119,13 @@ int cmd_initiate_subscribe(osip_transaction_t *, osip_message_t *);
 
 int cmd_initiate_notify(osip_transaction_t *, osip_message_t *);
 
-int cmd_finalize(const osip_message_t *, Sip__Message_Closure, void *, int);
+int cmd_finalize(const osip_message_t *, Sip__Message_Closure, void *, const uuid_t);
+
+int cmd_session_find(const uuid_t);
+
+int cmd_session_destroy(int, uuid_t);
+
+int cmd_session_add(int, const uuid_t);
 
 /* dns.c export */
 int dns_init();
