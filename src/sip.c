@@ -1440,15 +1440,13 @@ void sip_destroy(void *x) {
     if (!a)
         return;
 
-    uuid_t id;
-    if (cmd_session_destroy(a->transactionid, id))
-        return;
-
     log_debug("%s: %i", __PRETTY_FUNCTION__, a->transactionid);
-
 
     void *closure = osip_transaction_get_closure(a);
     if (closure) {
+        uuid_t id;
+        if (cmd_session_destroy(a->transactionid, id))
+            return;
         void *opaque = osip_transaction_get_opaque(a);
         if (!a->last_response) {
             const void *retries = osip_transaction_get_retry(a);
