@@ -1084,8 +1084,8 @@ static osip_message_t *sip_callback_invite(osip_transaction_t *a, osip_message_t
 /**
  *
  */
-static osip_message_t *sip_callback_option(osip_transaction_t *a, osip_message_t *q) {
-    const int n = cmd_initiate_option(a, q);
+static osip_message_t *sip_callback_options(osip_transaction_t *a, osip_message_t *q) {
+    const int n = cmd_initiate_options(a, q);
     switch (n) {
         case 0:
             return NULL;
@@ -1305,7 +1305,7 @@ static osip_message_t *sip_callback_switch(const osip_message_callback_type_t ty
         case OSIP_NIST_CANCEL_RECEIVED:
             return sip_callback_cancel(a, q);
         case OSIP_NIST_OPTIONS_RECEIVED:
-            return sip_callback_option(a, q);
+            return sip_callback_options(a, q);
         case OSIP_NIST_REGISTER_RECEIVED:
             return sip_callback_register(a, q);
         case OSIP_NIST_SUBSCRIBE_RECEIVED:

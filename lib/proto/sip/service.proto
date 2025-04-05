@@ -5,7 +5,7 @@ import "message.proto";
 service Sip {
 	rpc registration (sip.message) returns (sip.message);
 	rpc invite (sip.message) returns (sip.message);
-	rpc option (sip.message) returns (sip.message);
+	rpc options (sip.message) returns (sip.message);
 	rpc cancel (sip.message) returns (sip.message);
 	rpc bye (sip.message) returns (sip.message);
 	rpc info (sip.message) returns (sip.message);

@@ -107,7 +107,7 @@ int cmd_initiate_registration(osip_transaction_t *, osip_message_t *);
 
 int cmd_initiate_invite(osip_transaction_t *, osip_message_t *);
 
-int cmd_initiate_option(osip_transaction_t *, osip_message_t *);
+int cmd_initiate_options(osip_transaction_t *, osip_message_t *);
 
 int cmd_initiate_cancel(osip_transaction_t *, osip_message_t *);
 

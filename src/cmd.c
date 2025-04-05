@@ -32,7 +32,7 @@ static char hostname[];
 #define cmd_maintain_registration   cmd_maintain_request
 #define cmd_maintain_subscribe      cmd_maintain_request
 #define cmd_maintain_invite         cmd_maintain_request
-#define cmd_maintain_option         cmd_maintain_request
+#define cmd_maintain_options        cmd_maintain_request
 #define cmd_maintain_cancel         cmd_maintain_request
 #define cmd_maintain_bye            cmd_maintain_request
 #define cmd_maintain_info           cmd_maintain_request
@@ -109,7 +109,7 @@ static void cmd_maintain_request(Sip_Service *, const Sip__Message *query, const
 
 #define cmd_finalise_registration   cmd_finalise_request
 #define cmd_finalise_invite         cmd_finalise_request
-#define cmd_finalise_option         cmd_finalise_request
+#define cmd_finalise_options        cmd_finalise_request
 #define cmd_finalise_cancel         cmd_finalise_request
 #define cmd_finalise_bye            cmd_finalise_request
 #define cmd_finalise_info           cmd_finalise_request
@@ -269,7 +269,7 @@ int cmd_initiate_invite(osip_transaction_t *a, osip_message_t *m) {
  * @param m 
  * @return 
  */
-int cmd_initiate_option(osip_transaction_t *a, osip_message_t *m) {
+int cmd_initiate_options(osip_transaction_t *a, osip_message_t *m) {
     if (!__con)
         return -1;
     if (!cmd_ready(__con->foo))
@@ -282,7 +282,7 @@ int cmd_initiate_option(osip_transaction_t *a, osip_message_t *m) {
         return -2;
 
     int ret = 0;
-    sip__option(__con->foo, query, cmd_finalise_option, &ret);
+    sip__options(__con->foo, query, cmd_finalise_options, &ret);
     sip__message__free_unpacked(query, NULL);
     return ret;
 }
