@@ -8,38 +8,39 @@ import (
 //go:generate protoc -I . --proto_path=../../lib/proto/sip --go_out=../.. --go_opt=Mtype.proto=example/sip --go_opt=Mmessage.proto=example/sip --go_opt=Mservice.proto=example/sip type.proto message.proto service.proto
 
 func (x *Message) Copy(m *Message) {
+	x.Reset()
+	x.Id = m.Id
 	x.Response = m.Response
 	x.Request = m.Request
 	x.Head = m.Head
+	x.Content = m.Content
 	x.Sdp = m.Sdp
-	x.Id = m.Id
+	x.Vfu = m.Vfu
 	x.Dtmf = m.Dtmf
 	x.Pidf = m.Pidf
 	x.Rl = m.Rl
-	x.Vfu = m.Vfu
-	x.Content = m.Content
 }
 
 func (x *Message) IsRequest() bool {
 	return x.GetRequest() != nil && x.GetResponse() == 0
 }
 
-func (x *Uuid) GetUUID() uuid.UUID {
+func (x *UUID) GetUUID() uuid.UUID {
 	var uu uuid.UUID
 	binary.BigEndian.PutUint64(uu[:8], x.GetUpper())
 	binary.BigEndian.PutUint64(uu[8:], x.GetLower())
 	return uu
 }
 
-func NewUUIDFrom(uu uuid.UUID) *Uuid {
-	var id Uuid
+func NewUUIDFrom(uu uuid.UUID) *UUID {
+	var id UUID
 	id.Reset()
 	id.Upper = Ptr(binary.BigEndian.Uint64(uu[:8]))
 	id.Lower = Ptr(binary.BigEndian.Uint64(uu[8:]))
 	return &id
 }
 
-func NewUUID() *Uuid {
+func NewUUID() *UUID {
 	return NewUUIDFrom(uuid.New())
 }
 

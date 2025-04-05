@@ -685,8 +685,8 @@ static int __content__proto(const osip_message_t *m, Sip__Type__Content ***p_con
     return z;
 }
 
-static Sip__Uuid *sip__uuid__new(const uuid_t id) {
-    Sip__Uuid *p = malloc(sizeof(Sip__Uuid));
+static Sip__UUID *sip__uuid__new(const uuid_t id) {
+    Sip__UUID *p = malloc(sizeof(Sip__UUID));
     if (p) {
         sip__uuid__init(p);
 

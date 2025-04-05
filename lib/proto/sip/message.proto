@@ -32,13 +32,13 @@ message head {
 	optional sip.type.content_type content_type = 25;
 }
 
-message uuid {
+message UUID {
     required uint64 upper = 1;
     required uint64 lower = 2;
 }
 
 message message {
-	required uuid id = 1;
+	required UUID id = 1;
 	required int32 response = 2;
 	optional sip.type.uri request = 3;
 	required head head = 4;

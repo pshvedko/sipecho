@@ -21,18 +21,6 @@ func TestNewUUID(t *testing.T) {
 			name: "",
 			args: args{uu: uuid.New()},
 		},
-		{
-			name: "",
-			args: args{uu: uuid.New()},
-		},
-		{
-			name: "",
-			args: args{uu: uuid.New()},
-		},
-		{
-			name: "",
-			args: args{uu: uuid.New()},
-		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
