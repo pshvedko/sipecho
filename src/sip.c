@@ -628,9 +628,9 @@ osip_transaction_t *sip_loop(osip_event_t *e, void *q, ...) {
             osip_event_free(e);
     }
 
-    const net_event_t *n = osip_transaction_get_event(a);
-    if (n)
-        map_push(n->entities, a);
+    const net_event_t *net = osip_transaction_get_event(a);
+    if (net)
+        map_push(net->entities, a);
 
     while (a) {
         osip_event_t *o = osip_fifo_tryget(a->transactionff);
@@ -1420,19 +1420,7 @@ int sip_init() {
 /**
  *
  */
-void sip_delete(osip_transaction_t *a) {
-    const net_event_t *net = osip_transaction_get_event(a);
-    if (net)
-        map_get(net->entities, a, 0);
-
-    sip_destroy(a);
-}
-
-
-/**
- *
- */
-void sip_destroy(void *x) {
+static void sip_destroy(void *x) {
     if (!__sip)
         return;
 
@@ -1471,12 +1459,40 @@ void sip_destroy(void *x) {
 }
 
 /**
+ * 
+ * @param a
+ */
+void sip_delete(osip_transaction_t *a) {
+    const net_event_t *net = osip_transaction_get_event(a);
+    if (net)
+        map_get(net->entities, a, 0);
+
+    sip_destroy(a);
+}
+
+/**
  *
  * @param net
  * @return
  */
 static int sip_timeout(net_event_t *net) {
-    log_debug("%s: %i/%s/%s", __PRETTY_FUNCTION__, net->event->ev_fd, net->net->name, net->app->name);
+    if (!net)
+        return -1;
+
+    const time_t now = osip_getsystemtime(NULL);
+    map_t aa;
+    map_init(&aa, NULL);
+    map_iter_t *iter = map_iter_begin(net->entities);
+    while (*iter) {
+        osip_transaction_t *a = map_iter_down(net->entities, &iter);
+        if (a && now - a->birth_time > 64 * DEFAULT_T1 / 1000) {
+            log_debug("%s: %i/%s/%s [%i]", __PRETTY_FUNCTION__, net->event->ev_fd, net->net->name, net->app->name,
+                      a->transactionid);
+            map_push(&aa, a);
+        }
+    }
+    for (osip_transaction_t *a = map_pop(&aa); a; a = map_pop(&aa))
+        sip_delete(a);
 
     return 0;
 }
@@ -1504,5 +1520,5 @@ const app_t __g_app_SIP = {
     sip_timeout,
     NULL,
     {{sip_destroy, map_item_cmp}},
-    {60, 0}
+    {8, 0}
 };

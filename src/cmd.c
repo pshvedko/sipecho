@@ -20,7 +20,9 @@
 
 typedef struct session {
     int id;
-    unsigned char uuid[16];
+    int n;
+    time_t created;
+    uuid_t uuid;
 } session_t;
 
 static struct map *__ses; /**< Transaction id, map of @session_t */
@@ -161,6 +163,7 @@ static const unsigned char *cmd_session_get(const int id) {
     struct session key = {.id = id, .uuid = {}}, *ses = map_find(__ses, &key, 0);
     if (!ses) {
         ses = calloc(1, sizeof(struct session));
+        ses->created = time(NULL);
         ses->id = id;
         uuid_generate_random(ses->uuid);
         if (map_push(__ses, ses)) {
@@ -181,6 +184,7 @@ int cmd_session_add(const int id, const uuid_t in) {
     struct session *ses = calloc(1, sizeof(struct session));
     if (!ses)
         return -1;
+    ses->created = time(NULL);
     ses->id = id;
     uuid_copy(ses->uuid, in);
     return map_push(__ses, ses);
@@ -194,7 +198,7 @@ int cmd_session_add(const int id, const uuid_t in) {
 int cmd_session_find(const uuid_t in) {
     struct session key = {.id = 0, .uuid = UUID_COPY(in)}, *ses = map_find(__ses, &key, 1);
     if (ses) {
-        ses->uuid[0] = in[0];
+        ses->n++;
         return ses->id;
     }
     return -1;
@@ -527,9 +531,10 @@ static int cmd_release(net_event_t *net) {
 static int cmd_timeout(net_event_t *net) {
     log_debug("%s: %i/%s/%s", __PRETTY_FUNCTION__, net->event->ev_fd, net->net->name, net->app->name);
 
-    if (net->foo)
-        return cmd_ping(net->foo);
-    return 0;
+    if (!net->foo)
+        return 0;
+
+    return cmd_ping(net->foo);
 }
 
 /**

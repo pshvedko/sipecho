@@ -60,7 +60,7 @@ typedef struct net_event {
     const struct app *app;
     struct mem *incoming;
     struct map *outgoing;
-    struct map *entities;
+    struct map *entities; /**< map of @osip_transaction_t */
     struct event *event;
     const char **argv;
 

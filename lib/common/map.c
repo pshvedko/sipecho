@@ -966,7 +966,7 @@ void map_free(map_t *map) {
  */
 static map_node_t *map_key(map_t *map, map_node_t *node, const int index) {
     if (map->max > index) {
-        map_compare_t cmp = {.map = map, .index = index};
+        const map_compare_t cmp = {.map = map, .index = index};
 
         void **leaf = tsearch2(node, &map->key[index].root, map_internal_cmp2, &cmp);
 

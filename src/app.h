@@ -88,8 +88,6 @@ void sip_free();
 
 void sip_delete(osip_transaction_t *);
 
-void sip_destroy(void *);
-
 void sip_dump(const char *, const char *, unsigned);
 
 void sip_finalize(osip_message_t *, const uuid_t);
